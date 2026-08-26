@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import type { CampaignWithTemplate, Recipient, PaginatedResult } from '@/types'
 import { format } from 'date-fns'
@@ -32,6 +32,8 @@ export default function CampaignDetailPage() {
   const [recipientStatus, setRecipientStatus] = useState('')
   const [recipientPage, setRecipientPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [showPreview, setShowPreview] = useState(false)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   const fetchCampaign = useCallback(async () => {
     const res = await fetch(`/api/campaigns/${id}`)
@@ -99,6 +101,13 @@ export default function CampaignDetailPage() {
           <p className="text-sm text-gray-500">Template: {campaign.template_name} · From: {campaign.from_name} &lt;{campaign.from_email}&gt;</p>
         </div>
         <div className="flex gap-2">
+          {/* Preview button — always visible */}
+          <button
+            onClick={() => setShowPreview(true)}
+            className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+          >
+            Preview Email
+          </button>
           {campaign.status === 'draft' && (
             <button onClick={() => doAction('start')}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg">
@@ -235,6 +244,47 @@ export default function CampaignDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ height: '85vh' }}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Email Preview</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Rendered with {recipients?.data[0] ? `${recipients.data[0].name ?? recipients.data[0].email} as sample recipient` : 'placeholder values'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <a
+                  href={`/api/campaigns/${id}/preview`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  Open in new tab
+                </a>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            {/* iframe */}
+            <iframe
+              ref={iframeRef}
+              src={`/api/campaigns/${id}/preview`}
+              className="flex-1 w-full rounded-b-2xl"
+              title="Email Preview"
+              sandbox="allow-same-origin"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
