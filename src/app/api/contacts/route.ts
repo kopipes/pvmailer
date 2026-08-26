@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getContacts, getAllTags } from '@/lib/contacts'
+import { getContacts, getAllTags, upsertContact } from '@/lib/contacts'
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -21,4 +21,26 @@ export async function GET(request: NextRequest) {
 
   const result = getContacts(page, pageSize, search, tag, suppressed)
   return NextResponse.json(result)
+}
+
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json()
+  const { email, name, group_tags } = body
+
+  if (!email?.trim()) return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+  if (!email.includes('@')) return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+
+  try {
+    const contact = upsertContact({
+      email: email.trim(),
+      name: name?.trim() || undefined,
+      group_tags: group_tags?.trim() || undefined,
+    })
+    return NextResponse.json(contact, { status: 201 })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
 }

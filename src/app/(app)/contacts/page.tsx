@@ -5,6 +5,12 @@ import type { Contact, PaginatedResult } from '@/types'
 import ContactsTable from '@/components/contacts/ContactsTable'
 import UploadModal from '@/components/contacts/UploadModal'
 
+interface AddForm {
+  email: string
+  name: string
+  group_tags: string
+}
+
 export default function ContactsPage() {
   const [result, setResult] = useState<PaginatedResult<Contact> | null>(null)
   const [search, setSearch] = useState('')
@@ -13,6 +19,12 @@ export default function ContactsPage() {
   const [page, setPage] = useState(1)
   const [showUpload, setShowUpload] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // Add contact
+  const [showAdd, setShowAdd] = useState(false)
+  const [addForm, setAddForm] = useState<AddForm>({ email: '', name: '', group_tags: '' })
+  const [addSaving, setAddSaving] = useState(false)
+  const [addError, setAddError] = useState('')
 
   const fetchContacts = useCallback(async () => {
     setLoading(true)
@@ -36,6 +48,37 @@ export default function ContactsPage() {
     fetchContacts()
   }, [fetchContacts])
 
+  function openAdd() {
+    setAddForm({ email: '', name: '', group_tags: '' })
+    setAddError('')
+    setShowAdd(true)
+  }
+
+  async function saveAdd() {
+    if (!addForm.email.trim()) { setAddError('Email is required'); return }
+    if (!addForm.email.includes('@')) { setAddError('Invalid email address'); return }
+    setAddSaving(true)
+    setAddError('')
+    const res = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: addForm.email.trim(),
+        name: addForm.name.trim(),
+        group_tags: addForm.group_tags.trim(),
+      }),
+    })
+    setAddSaving(false)
+    if (res.ok) {
+      setShowAdd(false)
+      fetchContacts()
+      fetch('/api/contacts?tags=1').then(r => r.json()).then(setTags)
+    } else {
+      const d = await res.json()
+      setAddError(d.error ?? 'Failed to add contact')
+    }
+  }
+
   const totalPages = result ? Math.ceil(result.total / 50) : 1
 
   return (
@@ -48,12 +91,20 @@ export default function ContactsPage() {
             {result ? `${result.total.toLocaleString()} contacts` : '…'}
           </p>
         </div>
-        <button
-          onClick={() => setShowUpload(true)}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          Import from Excel
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={openAdd}
+            className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+          >
+            Add Contact
+          </button>
+          <button
+            onClick={() => setShowUpload(true)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            Import from Excel
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -75,15 +126,13 @@ export default function ContactsPage() {
         </select>
       </div>
 
-      {/* Table */}
       <ContactsTable
         contacts={result?.data ?? []}
         loading={loading}
         onRefresh={fetchContacts}
       />
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {result && totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-gray-500">
             Page {page} of {totalPages}
@@ -112,6 +161,68 @@ export default function ContactsPage() {
           onClose={() => setShowUpload(false)}
           onSuccess={() => { setShowUpload(false); fetchContacts() }}
         />
+      )}
+
+      {/* Add Contact Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-4">Add Contact</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                <input
+                  autoFocus
+                  type="email"
+                  value={addForm.email}
+                  onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter') saveAdd(); if (e.key === 'Escape') setShowAdd(false) }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={addForm.name}
+                  onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Escape') setShowAdd(false) }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Full name"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+                <input
+                  type="text"
+                  value={addForm.group_tags}
+                  onChange={e => setAddForm(f => ({ ...f, group_tags: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Escape') setShowAdd(false) }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="tag1,tag2"
+                />
+                <p className="text-xs text-gray-400 mt-1">Comma-separated tags</p>
+              </div>
+            </div>
+            {addError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-3">{addError}</p>}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowAdd(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveAdd}
+                disabled={addSaving}
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium rounded-lg"
+              >
+                {addSaving ? 'Adding…' : 'Add Contact'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
