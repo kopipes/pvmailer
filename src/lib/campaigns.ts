@@ -227,10 +227,20 @@ export function deleteCampaign(campaignId: string) {
 
 export function retryFailedRecipients(campaignId: string) {
   const db = getDb()
+  const failedCount = (db.prepare(
+    `SELECT COUNT(*) as c FROM recipients WHERE campaign_id = ? AND status = 'failed'`
+  ).get(campaignId) as { c: number }).c
+
   db.prepare(
-    `UPDATE recipients SET status = 'pending', last_error = NULL, updated_at = datetime('now')
+    `UPDATE recipients SET status = 'pending', last_error = NULL, attempt_count = 0, updated_at = datetime('now')
      WHERE campaign_id = ? AND status = 'failed'`
   ).run(campaignId)
+
+  // Reset campaign back to paused so startCampaign can proceed
+  db.prepare(
+    `UPDATE campaigns SET status = 'paused', failed_count = failed_count - ?, finished_at = NULL
+     WHERE id = ? AND status IN ('completed', 'cancelled')`
+  ).run(failedCount, campaignId)
 }
 
 export function updateRecipient(recipientId: string, data: { email?: string; name?: string }) {
