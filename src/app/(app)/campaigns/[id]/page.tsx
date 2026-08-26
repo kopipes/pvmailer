@@ -554,6 +554,13 @@ export default function CampaignDetailPage() {
               <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">
                 <p className="text-xs font-medium text-red-700 mb-0.5">Error</p>
                 <p className="text-xs text-red-600">{fixRecipient.last_error}</p>
+                {/domain|sender|from|verified|dkim|spf/i.test(fixRecipient.last_error) && (
+                  <p className="text-xs text-orange-700 bg-orange-50 border border-orange-100 rounded px-2 py-1.5 mt-2">
+                    This looks like a <strong>sender domain error</strong> — the recipient email is fine.
+                    Go to <strong>Templates</strong> and update the <em>From Email</em> to a verified domain
+                    (e.g. <code>no-reply@provaliantgroup.com</code>), then retry.
+                  </p>
+                )}
               </div>
             )}
             <div className="space-y-3 mb-4">
