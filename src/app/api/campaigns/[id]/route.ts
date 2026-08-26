@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import {
+  getCampaignById,
+  getCampaignRecipients,
+  startCampaign,
+  pauseCampaign,
+  cancelCampaign,
+  retryFailedRecipients,
+} from '@/lib/campaigns'
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  const { searchParams } = new URL(request.url)
+
+  if (searchParams.get('recipients') === '1') {
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const pageSize = parseInt(searchParams.get('pageSize') ?? '50')
+    const status = searchParams.get('status') ?? ''
+    return NextResponse.json(getCampaignRecipients(id, page, pageSize, status))
+  }
+
+  const campaign = getCampaignById(id)
+  if (!campaign) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json(campaign)
+}
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  const body = await request.json()
+
+  try {
+    switch (body.action) {
+      case 'start':
+        await startCampaign(id)
+        break
+      case 'pause':
+        pauseCampaign(id)
+        break
+      case 'cancel':
+        cancelCampaign(id)
+        break
+      case 'retry':
+        retryFailedRecipients(id)
+        await startCampaign(id)
+        break
+      default:
+        return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    }
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
+}
