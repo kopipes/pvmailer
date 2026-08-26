@@ -49,6 +49,7 @@ export default function CampaignDetailPage() {
   // Delete
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [actionPending, setActionPending] = useState<string | null>(null)
 
   // Edit Variables
   const [showVars, setShowVars] = useState(false)
@@ -143,11 +144,13 @@ export default function CampaignDetailPage() {
   }, [campaign?.status, fetchCampaign, fetchRecipients])
 
   async function doAction(action: string) {
+    setActionPending(action)
     await fetch(`/api/campaigns/${id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action }),
     })
+    setActionPending(null)
     fetchCampaign()
     fetchRecipients()
   }
@@ -264,33 +267,33 @@ export default function CampaignDetailPage() {
 
           {/* Campaign actions */}
           {campaign.status === 'draft' && (
-            <button onClick={() => doAction('start')}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg">
-              Start
+            <button onClick={() => doAction('start')} disabled={!!actionPending}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
+              {actionPending === 'start' ? 'Starting…' : 'Start'}
             </button>
           )}
           {campaign.status === 'running' && (
-            <button onClick={() => doAction('pause')}
-              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-lg">
-              Pause
+            <button onClick={() => doAction('pause')} disabled={!!actionPending}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
+              {actionPending === 'pause' ? 'Pausing…' : 'Pause'}
             </button>
           )}
           {campaign.status === 'paused' && (
             <>
-              <button onClick={() => doAction('start')}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg">
-                Resume
+              <button onClick={() => doAction('start')} disabled={!!actionPending}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
+                {actionPending === 'start' ? 'Resuming…' : 'Resume'}
               </button>
-              <button onClick={() => doAction('cancel')}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">
-                Cancel
+              <button onClick={() => doAction('cancel')} disabled={!!actionPending}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-60 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                {actionPending === 'cancel' ? 'Cancelling…' : 'Cancel'}
               </button>
             </>
           )}
           {['completed', 'paused'].includes(campaign.status) && campaign.failed_count > 0 && (
-            <button onClick={() => doAction('retry')}
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg">
-              Retry Failed
+            <button onClick={() => doAction('retry')} disabled={!!actionPending}
+              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
+              {actionPending === 'retry' ? 'Retrying…' : 'Retry Failed'}
             </button>
           )}
         </div>
