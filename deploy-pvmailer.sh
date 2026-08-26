@@ -112,14 +112,18 @@ echo "4. Ensuring data directory..."
 mkdir -p "$DB_DIR"
 chown -R www-data:www-data "$DB_DIR"
 
-# 6. Install dependencies
+# 6. Install all dependencies (including devDeps needed for build)
 echo "5. Installing dependencies..."
 cd $APP_DIR
-npm ci --omit=dev
+npm ci
 
 # 7. Build
 echo "6. Building..."
 NODE_ENV=production npm run build
+
+# 7b. Prune devDependencies after build
+echo "6b. Pruning dev dependencies..."
+npm prune --omit=dev
 
 # 8. Set ownership
 echo "7. Setting file ownership..."
