@@ -80,7 +80,7 @@ export default function TemplateEditor({ template, onClose, onSaved }: Props) {
   const [name, setName] = useState(template?.name ?? '')
   const [subject, setSubject] = useState(template?.subject ?? '')
   const [fromName, setFromName] = useState(template?.from_name ?? '')
-  const [fromEmail, setFromEmail] = useState(template?.from_email ?? '')
+  const [fromEmail, setFromEmail] = useState(template?.from_email ?? 'no-reply@provaliantgroup.com')
   const [preview, setPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
