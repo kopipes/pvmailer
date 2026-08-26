@@ -10,6 +10,8 @@ import {
   retryFailedRecipients,
   renameCampaign,
   deleteCampaign,
+  getCampaignVariables,
+  updateCampaignVariables,
 } from '@/lib/campaigns'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +25,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const pageSize = parseInt(searchParams.get('pageSize') ?? '50')
     const status = searchParams.get('status') ?? ''
     return NextResponse.json(getCampaignRecipients(id, page, pageSize, status))
+  }
+
+  if (searchParams.get('variables') === '1') {
+    return NextResponse.json(getCampaignVariables(id))
   }
 
   const campaign = getCampaignById(id)
@@ -64,7 +70,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
+  const { searchParams } = new URL(request.url)
   const body = await request.json()
+
+  // PUT ?variables=1 — update campaign variables
+  if (searchParams.get('variables') === '1') {
+    try {
+      updateCampaignVariables(id, body.variables ?? {})
+      return NextResponse.json({ ok: true })
+    } catch (e) {
+      return NextResponse.json({ error: String(e) }, { status: 500 })
+    }
+  }
+
+  // PUT — rename campaign
   if (!body.name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   try {
     renameCampaign(id, body.name.trim())

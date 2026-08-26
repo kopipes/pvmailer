@@ -91,6 +91,25 @@ export function deleteContact(id: string) {
   db.prepare('DELETE FROM contacts WHERE id = ?').run(id)
 }
 
+export function updateContact(id: string, data: {
+  email?: string
+  name?: string
+  group_tags?: string
+}): Contact {
+  const db = getDb()
+  const existing = getContactById(id)
+  if (!existing) throw new Error('Contact not found')
+  db.prepare(
+    `UPDATE contacts SET email = ?, name = ?, group_tags = ?, updated_at = datetime('now') WHERE id = ?`
+  ).run(
+    data.email ?? existing.email,
+    data.name !== undefined ? (data.name || null) : existing.name,
+    data.group_tags !== undefined ? (data.group_tags || null) : existing.group_tags,
+    id
+  )
+  return getContactById(id)!
+}
+
 export function getAllTags(): string[] {
   const db = getDb()
   const rows = db.prepare('SELECT DISTINCT group_tags FROM contacts WHERE group_tags IS NOT NULL').all() as { group_tags: string }[]

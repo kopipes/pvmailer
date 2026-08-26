@@ -188,6 +188,28 @@ export function renameCampaign(campaignId: string, name: string) {
   db.prepare(`UPDATE campaigns SET name = ? WHERE id = ?`).run(name, campaignId)
 }
 
+export function getCampaignVariables(campaignId: string): Record<string, string> {
+  const db = getDb()
+  const rows = db
+    .prepare('SELECT variable_name, variable_value FROM campaign_variables WHERE campaign_id = ?')
+    .all(campaignId) as { variable_name: string; variable_value: string }[]
+  const result: Record<string, string> = {}
+  for (const r of rows) result[r.variable_name] = r.variable_value
+  return result
+}
+
+export function updateCampaignVariables(campaignId: string, variables: Record<string, string>) {
+  const db = getDb()
+  db.transaction(() => {
+    db.prepare('DELETE FROM campaign_variables WHERE campaign_id = ?').run(campaignId)
+    for (const [key, value] of Object.entries(variables)) {
+      db.prepare(
+        `INSERT INTO campaign_variables (id, campaign_id, variable_name, variable_value) VALUES (?, ?, ?, ?)`
+      ).run(uuidv4(), campaignId, key, value)
+    }
+  })()
+}
+
 export function deleteCampaign(campaignId: string) {
   const db = getDb()
   const campaign = getCampaignById(campaignId)

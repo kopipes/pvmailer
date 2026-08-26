@@ -50,6 +50,37 @@ export default function CampaignDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
+  // Edit Variables
+  const [showVars, setShowVars] = useState(false)
+  const [vars, setVars] = useState<Record<string, string>>({})
+  const [varsSaving, setVarsSaving] = useState(false)
+  const [varsError, setVarsError] = useState('')
+
+  async function openVars() {
+    const res = await fetch(`/api/campaigns/${id}?variables=1`)
+    if (res.ok) setVars(await res.json())
+    setVarsError('')
+    setShowVars(true)
+  }
+
+  async function saveVars() {
+    setVarsSaving(true)
+    setVarsError('')
+    const res = await fetch(`/api/campaigns/${id}?variables=1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variables: vars }),
+    })
+    setVarsSaving(false)
+    if (res.ok) {
+      setShowVars(false)
+      setPreviewHtml(null) // invalidate preview cache
+    } else {
+      const d = await res.json()
+      setVarsError(d.error ?? 'Failed to save')
+    }
+  }
+
   const fetchCampaign = useCallback(async () => {
     const res = await fetch(`/api/campaigns/${id}`)
     if (res.ok) setCampaign(await res.json())
@@ -177,6 +208,14 @@ export default function CampaignDetailPage() {
             <button onClick={openEdit}
               className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">
               Rename
+            </button>
+          )}
+
+          {/* Edit Variables — draft only */}
+          {campaign.status === 'draft' && (
+            <button onClick={openVars}
+              className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+              Edit Variables
             </button>
           )}
 
@@ -410,6 +449,47 @@ export default function CampaignDetailPage() {
               <button onClick={doDelete}
                 className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg">
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Variables Modal ───────────────────────────────────────── */}
+      {showVars && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Edit Campaign Variables</h2>
+            <p className="text-xs text-gray-400 mb-4">These values replace <code className="bg-gray-100 px-1 rounded">{'{{variable}}'}</code> tokens in the template for all recipients.</p>
+            {Object.keys(vars).length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">No custom variables for this campaign.</p>
+            ) : (
+              <div className="space-y-3 mb-4">
+                {Object.entries(vars).map(([key, value]) => (
+                  <div key={key}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <code className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">{`{{${key}}}`}</code>
+                    </label>
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={e => setVars(v => ({ ...v, [key]: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder={`Value for ${key}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {varsError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mb-3">{varsError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setShowVars(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={saveVars} disabled={varsSaving}
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium rounded-lg">
+                {varsSaving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
