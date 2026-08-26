@@ -183,6 +183,26 @@ export function cancelCampaign(campaignId: string) {
   ).run(campaignId)
 }
 
+export function renameCampaign(campaignId: string, name: string) {
+  const db = getDb()
+  db.prepare(`UPDATE campaigns SET name = ? WHERE id = ?`).run(name, campaignId)
+}
+
+export function deleteCampaign(campaignId: string) {
+  const db = getDb()
+  const campaign = getCampaignById(campaignId)
+  if (!campaign) throw new Error('Campaign not found')
+  if (campaign.status === 'running') throw new Error('Cannot delete a running campaign — pause or cancel it first')
+  const worker = runningWorkers.get(campaignId)
+  if (worker) worker.abort = true
+  db.transaction(() => {
+    db.prepare('DELETE FROM send_attempts_log WHERE campaign_id = ?').run(campaignId)
+    db.prepare('DELETE FROM recipients WHERE campaign_id = ?').run(campaignId)
+    db.prepare('DELETE FROM campaign_variables WHERE campaign_id = ?').run(campaignId)
+    db.prepare('DELETE FROM campaigns WHERE id = ?').run(campaignId)
+  })()
+}
+
 export function retryFailedRecipients(campaignId: string) {
   const db = getDb()
   db.prepare(

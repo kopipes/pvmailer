@@ -8,6 +8,8 @@ import {
   pauseCampaign,
   cancelCampaign,
   retryFailedRecipients,
+  renameCampaign,
+  deleteCampaign,
 } from '@/lib/campaigns'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -52,6 +54,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  const body = await request.json()
+  if (!body.name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+  try {
+    renameCampaign(id, body.name.trim())
+    return NextResponse.json(getCampaignById(id))
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
+}
+
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  try {
+    deleteCampaign(id)
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
