@@ -287,7 +287,7 @@ export default function CampaignDetailPage() {
               </button>
             </>
           )}
-          {campaign.status === 'completed' && campaign.failed_count > 0 && (
+          {['completed', 'paused'].includes(campaign.status) && campaign.failed_count > 0 && (
             <button onClick={() => doAction('retry')}
               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg">
               Retry Failed
