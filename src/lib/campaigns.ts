@@ -391,9 +391,12 @@ async function runWorker(campaignId: string) {
              attempt_count = attempt_count + 1, updated_at = datetime('now') WHERE id = ?`
           ).run(msgId, recipient.id)
 
+          // If this was a retry (attempt_count > 0), decrement failed_count
           db.prepare(
-            `UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = ?`
-          ).run(campaignId)
+            `UPDATE campaigns SET sent_count = sent_count + 1,
+             failed_count = MAX(0, failed_count - CASE WHEN ? > 0 THEN 1 ELSE 0 END)
+             WHERE id = ?`
+          ).run(recipient.attempt_count, campaignId)
 
           // Log attempt
           db.prepare(
