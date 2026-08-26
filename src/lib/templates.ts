@@ -169,7 +169,7 @@ export function seedSampleTemplates() {
       name: 'Event Invitation',
       subject: 'You\'re Invited: {{event_name}} on {{event_date}}',
       from_name: 'Events Team',
-      from_email: 'events@yourdomain.com',
+      from_email: 'no-reply@provaliantgroup.com',
       body_html: `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
   <div style="background: #4F46E5; padding: 32px 40px; border-radius: 12px 12px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">{{event_name}}</h1>
@@ -196,7 +196,7 @@ export function seedSampleTemplates() {
       name: 'Client Follow-Up',
       subject: 'Following Up: {{topic}}',
       from_name: 'Account Team',
-      from_email: 'account@yourdomain.com',
+      from_email: 'no-reply@provaliantgroup.com',
       body_html: `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
   <div style="padding: 32px 40px 24px; border-bottom: 2px solid #4F46E5;">
     <span style="font-size: 20px; font-weight: 700; color: #4F46E5;">PVMailer</span>

@@ -344,6 +344,11 @@ async function runWorker(campaignId: string) {
             },
           })
 
+          // Resend SDK returns { data, error } — throw if error so catch block handles it
+          if (result.error) {
+            throw new Error(result.error.message ?? JSON.stringify(result.error))
+          }
+
           const msgId = result.data?.id ?? null
 
           db.prepare(
