@@ -229,8 +229,22 @@ export function retryFailedRecipients(campaignId: string) {
   const db = getDb()
   db.prepare(
     `UPDATE recipients SET status = 'pending', last_error = NULL, updated_at = datetime('now')
-     WHERE campaign_id = ? AND status IN ('failed', 'bounced') AND attempt_count < ?`
-  ).run(campaignId, MAX_RETRIES)
+     WHERE campaign_id = ? AND status = 'failed'`
+  ).run(campaignId)
+}
+
+export function updateRecipient(recipientId: string, data: { email?: string; name?: string }) {
+  const db = getDb()
+  const existing = db.prepare('SELECT * FROM recipients WHERE id = ?').get(recipientId) as { id: string; email: string; name: string | null; status: string } | undefined
+  if (!existing) throw new Error('Recipient not found')
+  db.prepare(
+    `UPDATE recipients SET email = ?, name = ?, status = 'pending', last_error = NULL,
+     attempt_count = 0, updated_at = datetime('now') WHERE id = ?`
+  ).run(
+    data.email?.trim() ?? existing.email,
+    data.name !== undefined ? (data.name.trim() || null) : existing.name,
+    recipientId
+  )
 }
 
 export function resumeCampaignsOnStartup() {

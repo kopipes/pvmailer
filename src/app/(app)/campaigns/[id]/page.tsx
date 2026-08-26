@@ -81,6 +81,41 @@ export default function CampaignDetailPage() {
     }
   }
 
+  // Fix recipient
+  const [fixRecipient, setFixRecipient] = useState<Recipient | null>(null)
+  const [fixEmail, setFixEmail] = useState('')
+  const [fixName, setFixName] = useState('')
+  const [fixSaving, setFixSaving] = useState(false)
+  const [fixError, setFixError] = useState('')
+
+  async function saveFix() {
+    if (!fixEmail.trim()) { setFixError('Email is required'); return }
+    if (!fixEmail.includes('@')) { setFixError('Invalid email'); return }
+    setFixSaving(true)
+    setFixError('')
+    const res = await fetch(`/api/campaigns/${id}/recipients/${fixRecipient!.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: fixEmail.trim(), name: fixName.trim() }),
+    })
+    setFixSaving(false)
+    if (res.ok) {
+      setFixRecipient(null)
+      fetchRecipients()
+      fetchCampaign()
+    } else {
+      const d = await res.json()
+      setFixError(d.error ?? 'Failed to update')
+    }
+  }
+
+  function openFix(r: Recipient) {
+    setFixRecipient(r)
+    setFixEmail(r.email)
+    setFixName(r.name ?? '')
+    setFixError('')
+  }
+
   const fetchCampaign = useCallback(async () => {
     const res = await fetch(`/api/campaigns/${id}`)
     if (res.ok) setCampaign(await res.json())
@@ -322,6 +357,7 @@ export default function CampaignDetailPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Attempts</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sent at</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -338,6 +374,16 @@ export default function CampaignDetailPage() {
                   <td className="px-4 py-3 text-gray-500">{r.attempt_count}</td>
                   <td className="px-4 py-3 text-gray-400 text-xs">
                     {r.sent_at ? format(new Date(r.sent_at), 'd MMM HH:mm') : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {(r.status === 'failed' || r.status === 'bounced') && (
+                      <button
+                        onClick={() => openFix(r)}
+                        className="text-xs text-indigo-600 hover:underline font-medium"
+                      >
+                        Fix
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -490,6 +536,58 @@ export default function CampaignDetailPage() {
               <button onClick={saveVars} disabled={varsSaving}
                 className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium rounded-lg">
                 {varsSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Fix Recipient Modal ─────────────────────────────────────────── */}
+      {fixRecipient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Fix Recipient</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Update the details and the recipient will be reset to pending for the next send.
+            </p>
+            {fixRecipient.last_error && (
+              <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">
+                <p className="text-xs font-medium text-red-700 mb-0.5">Error</p>
+                <p className="text-xs text-red-600">{fixRecipient.last_error}</p>
+              </div>
+            )}
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                <input
+                  autoFocus
+                  type="email"
+                  value={fixEmail}
+                  onChange={e => setFixEmail(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveFix(); if (e.key === 'Escape') setFixRecipient(null) }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={fixName}
+                  onChange={e => setFixName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Escape') setFixRecipient(null) }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+            {fixError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mb-3">{fixError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setFixRecipient(null)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={saveFix} disabled={fixSaving}
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium rounded-lg">
+                {fixSaving ? 'Saving…' : 'Save & Queue'}
               </button>
             </div>
           </div>
