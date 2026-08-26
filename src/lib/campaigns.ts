@@ -265,11 +265,22 @@ export function resumeCampaignsOnStartup() {
     .all() as { id: string }[]
 
   for (const { id } of running) {
-    // Reset stuck sending recipients
+    // Reset stuck 'sending' recipients back to 'pending'
     db.prepare(
       `UPDATE recipients SET status = 'pending' WHERE campaign_id = ? AND status = 'sending'`
     ).run(id)
-    startCampaign(id).catch(console.error)
+
+    // Only resume if there are pending recipients — otherwise set to paused
+    const pendingCount = (db
+      .prepare(`SELECT COUNT(*) as c FROM recipients WHERE campaign_id = ? AND status = 'pending'`)
+      .get(id) as { c: number }).c
+
+    if (pendingCount > 0) {
+      startCampaign(id).catch(console.error)
+    } else {
+      // No work to do — park as paused so user can retry manually
+      db.prepare(`UPDATE campaigns SET status = 'paused' WHERE id = ?`).run(id)
+    }
   }
 }
 
