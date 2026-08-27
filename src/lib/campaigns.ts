@@ -210,6 +210,53 @@ export function updateCampaignVariables(campaignId: string, variables: Record<st
   })()
 }
 
+export function duplicateCampaign(campaignId: string, newName: string): Campaign {
+  const db = getDb()
+  const original = getCampaignById(campaignId)
+  if (!original) throw new Error('Campaign not found')
+
+  const newId = uuidv4()
+
+  db.transaction(() => {
+    // Create new draft campaign
+    db.prepare(
+      `INSERT INTO campaigns (id, name, template_id, status, total_count)
+       VALUES (?, ?, ?, 'draft', ?)`
+    ).run(newId, newName, original.template_id, original.total_count)
+
+    // Copy campaign variables
+    const vars = db
+      .prepare('SELECT variable_name, variable_value FROM campaign_variables WHERE campaign_id = ?')
+      .all(campaignId) as { variable_name: string; variable_value: string }[]
+    for (const v of vars) {
+      db.prepare(
+        `INSERT INTO campaign_variables (id, campaign_id, variable_name, variable_value) VALUES (?, ?, ?, ?)`
+      ).run(uuidv4(), newId, v.variable_name, v.variable_value)
+    }
+
+    // Copy recipients (reset to pending, clear send data)
+    const recipients = db
+      .prepare('SELECT * FROM recipients WHERE campaign_id = ?')
+      .all(campaignId) as Recipient[]
+    for (const r of recipients) {
+      const idemKey = `${newId}:${r.contact_id}`
+      db.prepare(
+        `INSERT OR IGNORE INTO recipients
+         (id, campaign_id, contact_id, email, name, extra_data, status, idempotency_key)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`
+      ).run(uuidv4(), newId, r.contact_id, r.email, r.name, r.extra_data, idemKey)
+    }
+
+    // Update total_count to actual inserted
+    const count = (db
+      .prepare('SELECT COUNT(*) as c FROM recipients WHERE campaign_id = ?')
+      .get(newId) as { c: number }).c
+    db.prepare('UPDATE campaigns SET total_count = ? WHERE id = ?').run(count, newId)
+  })()
+
+  return db.prepare('SELECT * FROM campaigns WHERE id = ?').get(newId) as Campaign
+}
+
 export function deleteCampaign(campaignId: string) {
   const db = getDb()
   const campaign = getCampaignById(campaignId)

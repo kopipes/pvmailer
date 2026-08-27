@@ -12,6 +12,7 @@ import {
   deleteCampaign,
   getCampaignVariables,
   updateCampaignVariables,
+  duplicateCampaign,
 } from '@/lib/campaigns'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -57,6 +58,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         retryFailedRecipients(id)
         await startCampaign(id)
         break
+      case 'duplicate': {
+        const name = body.name?.trim() || `${(getCampaignById(id)?.name ?? 'Campaign')} (Copy)`
+        const newCampaign = duplicateCampaign(id, name)
+        return NextResponse.json(newCampaign)
+      }
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }

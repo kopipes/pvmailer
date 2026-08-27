@@ -155,6 +155,21 @@ export default function CampaignDetailPage() {
     fetchRecipients()
   }
 
+  async function doDuplicate() {
+    setActionPending('duplicate')
+    const name = `${campaign?.name ?? 'Campaign'} (Copy)`
+    const res = await fetch(`/api/campaigns/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'duplicate', name }),
+    })
+    setActionPending(null)
+    if (res.ok) {
+      const newCampaign = await res.json()
+      router.push(`/campaigns/${newCampaign.id}`)
+    }
+  }
+
   async function openPreview() {
     setShowPreview(true)
     if (previewHtml) return
@@ -239,6 +254,13 @@ export default function CampaignDetailPage() {
           <button onClick={openPreview}
             className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">
             Preview
+          </button>
+
+          {/* Duplicate — always */}
+          <button onClick={doDuplicate} disabled={!!actionPending}
+            className="px-3 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-60 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+            title="Create a new draft campaign with the same template, contacts and variables">
+            {actionPending === 'duplicate' ? 'Duplicating…' : 'Duplicate'}
           </button>
 
           {/* Edit — not while running */}
