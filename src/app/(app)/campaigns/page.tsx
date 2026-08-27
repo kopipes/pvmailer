@@ -5,13 +5,14 @@ import type { CampaignWithTemplate, PaginatedResult } from '@/types'
 import { format } from 'date-fns'
 import CampaignWizard from '@/components/campaigns/CampaignWizard'
 import Link from 'next/link'
+import { Send, Plus, Search, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  running: 'bg-blue-50 text-blue-700',
-  paused: 'bg-yellow-50 text-yellow-700',
-  completed: 'bg-green-50 text-green-700',
-  cancelled: 'bg-red-50 text-red-600',
+const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; bg: string }> = {
+  draft:     { label: 'Draft',     dot: 'bg-gray-400',    text: 'text-gray-600',   bg: 'bg-gray-100' },
+  running:   { label: 'Running',   dot: 'bg-blue-400 animate-pulse', text: 'text-blue-700', bg: 'bg-blue-50' },
+  paused:    { label: 'Paused',    dot: 'bg-yellow-400',  text: 'text-yellow-700', bg: 'bg-yellow-50' },
+  completed: { label: 'Completed', dot: 'bg-emerald-400', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+  cancelled: { label: 'Cancelled', dot: 'bg-red-400',     text: 'text-red-600',    bg: 'bg-red-50' },
 }
 
 export default function CampaignsPage() {
@@ -33,7 +34,6 @@ export default function CampaignsPage() {
 
   useEffect(() => { fetchCampaigns() }, [fetchCampaigns])
 
-  // Auto-refresh when a campaign is running
   useEffect(() => {
     const hasRunning = result?.data.some(c => c.status === 'running')
     if (!hasRunning) return
@@ -59,27 +59,23 @@ export default function CampaignsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Campaigns</h1>
           <p className="text-sm text-gray-500 mt-1">{result ? `${result.total} campaigns` : '…'}</p>
         </div>
-        <button
-          onClick={() => setShowWizard(true)}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
+        <button onClick={() => setShowWizard(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-medium rounded-lg shadow-sm transition-all">
+          <Plus size={15} />
           New Campaign
         </button>
       </div>
 
-      <div className="flex gap-3 mb-4">
-        <input
-          type="text"
-          placeholder="Search campaigns…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <select
-          value={status}
-          onChange={e => { setStatus(e.target.value); setPage(1) }}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
+      <div className="flex gap-3 mb-5">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input type="text" placeholder="Search campaigns…" value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}
+          className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">All statuses</option>
           {['draft', 'running', 'paused', 'completed', 'cancelled'].map(s => (
             <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
@@ -88,85 +84,96 @@ export default function CampaignsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400 text-sm">Loading…</div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center text-sm text-gray-400">Loading…</div>
       ) : !result?.data.length ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">📧</p>
-          <p className="text-sm">No campaigns yet.</p>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-16 text-center">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+            <Send size={20} className="text-gray-400" />
+          </div>
+          <p className="text-sm font-medium text-gray-600">No campaigns yet</p>
+          <p className="text-xs text-gray-400 mt-1">Create your first campaign to start sending</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Campaign</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Progress</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Created</th>
-                <th className="px-4 py-3" />
+              <tr className="border-b border-gray-100">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Campaign</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Progress</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Created</th>
+                <th className="px-5 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-50">
               {result.data.map(c => {
                 const pct = c.total_count > 0
                   ? Math.round(((c.sent_count + c.failed_count) / c.total_count) * 100)
                   : 0
+                const s = STATUS_CONFIG[c.status] ?? STATUS_CONFIG.draft
                 return (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <Link href={`/campaigns/${c.id}`} className="font-medium text-gray-900 hover:text-indigo-600">
+                  <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <Link href={`/campaigns/${c.id}`} className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
                         {c.name}
                       </Link>
                       <p className="text-xs text-gray-400 mt-0.5">{c.template_name}</p>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[c.status] ?? ''}`}>
-                        {c.status}
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-md font-medium ${s.text} ${s.bg}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                        {s.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 min-w-[160px]">
+                    <td className="px-5 py-3.5 min-w-[180px]">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="bg-indigo-500 h-1.5 rounded-full transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
+                          <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="text-xs text-gray-500 shrink-0">
-                          {c.sent_count}/{c.total_count}
-                        </span>
+                        <span className="text-xs text-gray-500 shrink-0">{c.sent_count}/{c.total_count}</span>
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {c.opened_count} opened · {c.failed_count} failed
+                        {c.opened_count} opened · {c.failed_count > 0 ? <span className="text-red-400">{c.failed_count} failed</span> : '0 failed'}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
+                    <td className="px-5 py-3.5 text-gray-400 text-xs whitespace-nowrap">
                       {format(new Date(c.created_at), 'd MMM yyyy')}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2 justify-end">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2 justify-end">
                         {c.status === 'draft' && (
                           <button onClick={() => doAction(c.id, 'start')}
-                            className="text-xs text-indigo-600 hover:underline font-medium">Start</button>
+                            className="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-medium rounded-md transition-colors">
+                            Start
+                          </button>
                         )}
                         {c.status === 'running' && (
                           <button onClick={() => doAction(c.id, 'pause')}
-                            className="text-xs text-yellow-600 hover:underline font-medium">Pause</button>
+                            className="text-xs px-2.5 py-1 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 font-medium rounded-md transition-colors">
+                            Pause
+                          </button>
                         )}
                         {c.status === 'paused' && (
                           <>
                             <button onClick={() => doAction(c.id, 'start')}
-                              className="text-xs text-indigo-600 hover:underline font-medium">Resume</button>
+                              className="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-medium rounded-md transition-colors">
+                              Resume
+                            </button>
                             <button onClick={() => doAction(c.id, 'cancel')}
-                              className="text-xs text-red-500 hover:underline">Cancel</button>
+                              className="text-xs px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors">
+                              Cancel
+                            </button>
                           </>
                         )}
-                        {c.status === 'completed' && c.failed_count > 0 && (
+                        {['completed', 'paused'].includes(c.status) && c.failed_count > 0 && (
                           <button onClick={() => doAction(c.id, 'retry')}
-                            className="text-xs text-indigo-600 hover:underline font-medium">Retry failed</button>
+                            className="text-xs px-2.5 py-1 border border-orange-200 text-orange-600 hover:bg-orange-50 rounded-md transition-colors">
+                            Resend {c.failed_count} failed
+                          </button>
                         )}
-                        <Link href={`/campaigns/${c.id}`} className="text-xs text-gray-500 hover:underline">
-                          Details
+                        <Link href={`/campaigns/${c.id}`}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors">
+                          <ExternalLink size={13} />
                         </Link>
                       </div>
                     </td>
@@ -181,14 +188,14 @@ export default function CampaignsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-gray-500">Page {page} of {totalPages}</p>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-              Previous
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-200 bg-white rounded-lg disabled:opacity-40 hover:bg-gray-50 shadow-sm">
+              <ChevronLeft size={14} /> Previous
             </button>
             <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50">
-              Next
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-200 bg-white rounded-lg disabled:opacity-40 hover:bg-gray-50 shadow-sm">
+              Next <ChevronRight size={14} />
             </button>
           </div>
         </div>
