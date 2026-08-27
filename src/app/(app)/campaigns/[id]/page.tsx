@@ -292,8 +292,9 @@ export default function CampaignDetailPage() {
           )}
           {['completed', 'paused'].includes(campaign.status) && campaign.failed_count > 0 && (
             <button onClick={() => doAction('retry')} disabled={!!actionPending}
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
-              {actionPending === 'retry' ? 'Retrying…' : 'Retry Failed'}
+              className="px-3 py-2 border border-orange-300 hover:bg-orange-50 disabled:opacity-60 text-orange-600 text-sm font-medium rounded-lg transition-colors"
+              title={`${campaign.failed_count} recipient(s) failed to send — click to reset and resend only those`}>
+              {actionPending === 'retry' ? 'Retrying…' : `Resend ${campaign.failed_count} Failed`}
             </button>
           )}
         </div>
