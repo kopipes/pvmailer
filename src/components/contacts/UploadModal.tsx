@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import ExcelJS from 'exceljs'
-import { Upload, FileSpreadsheet, CheckSquare, Square, X, ChevronRight } from 'lucide-react'
+import { Upload, FileSpreadsheet, X, ChevronRight } from 'lucide-react'
 
 interface Props {
   onClose: () => void
@@ -11,16 +11,18 @@ interface Props {
 
 type Step = 'upload' | 'map' | 'done'
 
+// What each column maps to: 'email' | 'name' | 'skip' | custom variable name
+type ColRole = 'email' | 'name' | 'skip' | string
+
 export default function UploadModal({ onClose, onSuccess }: Props) {
   const [step, setStep] = useState<Step>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
-  const [mapping, setMapping] = useState<Record<string, string>>({ email: '', name: '' })
+  const [preview, setPreview] = useState<string[][]>([]) // first 2 data rows
+  const [roles, setRoles] = useState<Record<string, ColRole>>({}) // header -> role
   const [groupTag, setGroupTag] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null)
-  // Extra columns: key = original header, value = variable name (empty = excluded)
-  const [extraCols, setExtraCols] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -30,66 +32,65 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(buffer)
     const ws = workbook.worksheets[0]
-    const row = ws.getRow(1)
+    const row1 = ws.getRow(1)
     const hdrs: string[] = []
-    row.eachCell((cell) => hdrs.push(String(cell.value ?? '').trim()))
+    row1.eachCell((cell) => hdrs.push(String(cell.value ?? '').trim()))
     setHeaders(hdrs)
 
-    const emailGuess = hdrs.find(h => /email/i.test(h)) ?? ''
-    const nameGuess = hdrs.find(h => /^name$/i.test(h))
-      ?? hdrs.find(h => /^nama$/i.test(h))
-      ?? hdrs.find(h => /nama.?lengkap/i.test(h))
-      ?? hdrs.find(h => /nama_lengkap/i.test(h))
-      ?? hdrs.find(h => /full.?name/i.test(h))
-      ?? hdrs.find(h => /^nama/i.test(h))
-      ?? ''
-    setMapping({ email: emailGuess, name: nameGuess })
+    // Preview: first 2 data rows
+    const rows: string[][] = []
+    for (let r = 2; r <= Math.min(3, ws.rowCount); r++) {
+      const row = ws.getRow(r)
+      const vals: string[] = []
+      row.eachCell({ includeEmpty: true }, (cell, col) => {
+        vals[col - 1] = String(cell.value ?? '').trim()
+      })
+      rows.push(hdrs.map((_, i) => vals[i] ?? ''))
+    }
+    setPreview(rows)
 
-    // All non-email, non-name columns become extra variables by default
-    const extras: Record<string, string> = {}
-    hdrs.forEach(h => {
-      if (!h) return
-      if (emailGuess && h === emailGuess) return
-      if (nameGuess && h === nameGuess) return
-      extras[h] = h // default variable name = column header
-    })
-    setExtraCols(extras)
+    // Default roles: each column starts as the header name (= variable name)
+    // user can change to email / name / skip
+    const defaultRoles: Record<string, ColRole> = {}
+    hdrs.forEach(h => { defaultRoles[h] = h })
+    setRoles(defaultRoles)
     setStep('map')
   }
 
-  // Extra columns excluding whatever is selected as email
-  function getAvailableExtras() {
-    return headers.filter(h => h && h !== mapping.email)
+  function setRole(header: string, role: ColRole) {
+    setRoles(prev => {
+      const next = { ...prev }
+      // If assigning email/name, unassign from any other column that had it
+      if (role === 'email' || role === 'name') {
+        Object.keys(next).forEach(h => { if (next[h] === role) next[h] = h })
+      }
+      next[header] = role
+      return next
+    })
   }
 
-  function toggleExtra(h: string) {
-    setExtraCols(prev => ({
-      ...prev,
-      [h]: prev[h] === '' ? h : '',
-    }))
-  }
-
-  function renameExtra(h: string, newName: string) {
-    setExtraCols(prev => ({ ...prev, [h]: newName }))
-  }
+  const emailCol = Object.entries(roles).find(([, v]) => v === 'email')?.[0]
+  const nameCol = Object.entries(roles).find(([, v]) => v === 'name')?.[0]
+  const variableCols = Object.entries(roles).filter(([, v]) => v !== 'email' && v !== 'name' && v !== 'skip')
 
   async function handleImport() {
-    if (!file || !mapping.email) return
+    if (!file || !emailCol) return
     setLoading(true)
 
-    const availableExtras = getAvailableExtras()
+    // Build mapping and extraColumns
+    const mapping: Record<string, string> = { email: emailCol }
+    if (nameCol) mapping.name = nameCol
 
-    // Extra variables: columns not used as name, that are checked and have a variable name
-    const extraColumnsMap = Object.fromEntries(
-      availableExtras
-        .filter(h => h !== mapping.name && extraCols[h]?.trim())
-        .map(h => [extraCols[h].trim(), h])
-    )
+    // extraColumns: { variableName -> columnHeader }
+    const extraColumns: Record<string, string> = {}
+    variableCols.forEach(([header, varName]) => {
+      extraColumns[String(varName)] = header
+    })
 
     const fd = new FormData()
     fd.append('file', file)
     fd.append('mapping', JSON.stringify(mapping))
-    fd.append('extraColumns', JSON.stringify(extraColumnsMap))
+    fd.append('extraColumns', JSON.stringify(extraColumns))
     if (groupTag) fd.append('groupTag', groupTag)
 
     const res = await fetch('/api/contacts/import', { method: 'POST', body: fd })
@@ -100,13 +101,9 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
     if (data.imported > 0) onSuccess(data)
   }
 
-  const extras = getAvailableExtras()
-  // Variables = extra cols that are checked AND not used as the name column
-  const variableCount = extras.filter(h => h !== mapping.name && extraCols[h]?.trim()).length
-
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
@@ -120,7 +117,7 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
           </button>
         </div>
 
-        {/* Steps indicator */}
+        {/* Steps */}
         <div className="flex items-center gap-1 px-6 pt-4 pb-2">
           {['Upload', 'Map columns', 'Done'].map((s, i) => {
             const stepMap = ['upload', 'map', 'done']
@@ -130,10 +127,9 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
             return (
               <div key={s} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight size={12} className="text-gray-300" />}
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  active ? 'bg-indigo-100 text-indigo-700' :
-                  done ? 'text-emerald-600' : 'text-gray-400'
-                }`}>{done ? '✓ ' : ''}{s}</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${active ? 'bg-indigo-100 text-indigo-700' : done ? 'text-emerald-600' : 'text-gray-400'}`}>
+                  {done ? '✓ ' : ''}{s}
+                </span>
               </div>
             )
           })}
@@ -144,9 +140,7 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
           {step === 'upload' && (
             <div>
               <div
-                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
-                  dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
-                }`}
+                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'}`}
                 onClick={() => fileRef.current?.click()}
                 onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
                 onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
@@ -165,86 +159,95 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
 
           {/* Step 2: Map columns */}
           {step === 'map' && (
-            <div className="space-y-4">
-              {/* Required fields */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Email column <span className="text-red-500">*</span>
-                  </label>
-                  <select value={mapping.email}
-                    onChange={e => setMapping(m => ({ ...m, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">Select…</option>
-                    {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Name column</label>
-                  <select value={mapping.name}
-                    onChange={e => setMapping(m => ({ ...m, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">None</option>
-                    {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-              </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-4">
+                For each column, choose what it maps to. Set one column as <strong>Email</strong> (required) and one as <strong>Name</strong>. All others become template variables or can be skipped.
+              </p>
 
-              {/* Extra columns */}
-              {extras.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-medium text-gray-600">
-                      Extra columns as variables
-                      <span className="ml-1.5 text-gray-400 font-normal">
-                        ({variableCount} variable{variableCount !== 1 ? 's' : ''})
-                      </span>
-                    </label>
-                    <span className="text-xs text-gray-400">
-                      usable as <code className="bg-gray-100 px-1 rounded">{'{{'+'variable'+'}}' }</code>
-                    </span>
-                  </div>
-                  <div className="border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-52 overflow-y-auto">
-                    {extras.map(h => {
-                      const isNameCol = h === mapping.name
-                      const included = !isNameCol && !!extraCols[h]?.trim()
+              <div className="border border-gray-200 rounded-xl overflow-hidden mb-4">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="text-left px-4 py-2.5 font-semibold text-gray-500">Column</th>
+                      <th className="text-left px-4 py-2.5 font-semibold text-gray-500">Sample values</th>
+                      <th className="text-left px-4 py-2.5 font-semibold text-gray-500">Maps to</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {headers.map(h => {
+                      const role = roles[h] ?? h
+                      const isEmail = role === 'email'
+                      const isName = role === 'name'
+                      const isSkip = role === 'skip'
+                      const colIdx = headers.indexOf(h)
+                      const samples = preview.map(row => row[colIdx]).filter(Boolean).slice(0, 2)
+
                       return (
-                        <div key={h} className={`flex items-center gap-2.5 px-3 py-2.5 transition-colors ${isNameCol ? 'bg-gray-50 opacity-50' : included ? 'bg-white' : 'bg-gray-50'}`}>
-                          <button
-                            onClick={() => !isNameCol && toggleExtra(h)}
-                            disabled={isNameCol}
-                            className={`shrink-0 transition-colors ${included ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'} disabled:cursor-not-allowed`}>
-                            {included ? <CheckSquare size={16} /> : <Square size={16} />}
-                          </button>
-                          <span className="text-xs text-gray-500 w-24 shrink-0 truncate" title={h}>{h}</span>
-                          {isNameCol && <span className="text-xs text-gray-400 italic">used as name</span>}
-                          {!isNameCol && included && (
-                            <>
-                              <ChevronRight size={12} className="text-gray-300 shrink-0" />
-                              <input
-                                type="text"
-                                value={extraCols[h]}
-                                onChange={e => renameExtra(h, e.target.value)}
-                                className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 font-mono"
-                                placeholder="variable name"
-                              />
-                              <span className="text-xs text-indigo-400 shrink-0 font-mono">
-                                {`{{${extraCols[h] || '...'}}}`}
-                              </span>
-                            </>
-                          )}
-                          {!isNameCol && !included && (
-                            <span className="text-xs text-gray-300 italic">excluded</span>
-                          )}
-                        </div>
+                        <tr key={h} className={`${isSkip ? 'opacity-40' : ''}`}>
+                          <td className="px-4 py-2.5 font-mono font-medium text-gray-700">{h}</td>
+                          <td className="px-4 py-2.5 text-gray-400 max-w-xs">
+                            {samples.map((s, i) => (
+                              <span key={i} className="mr-2 truncate inline-block max-w-[140px]" title={s}>{s}</span>
+                            ))}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-1.5">
+                              {/* Quick role buttons */}
+                              <button onClick={() => setRole(h, 'email')}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${isEmail ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'}`}>
+                                Email
+                              </button>
+                              <button onClick={() => setRole(h, 'name')}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${isName ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'}`}>
+                                Name
+                              </button>
+                              <button onClick={() => setRole(h, 'skip')}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${isSkip ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                Skip
+                              </button>
+                              {/* Variable name input */}
+                              {!isEmail && !isName && !isSkip && (
+                                <div className="flex items-center gap-1 ml-1">
+                                  <span className="text-gray-400 font-mono text-xs">{'{{'}</span>
+                                  <input
+                                    type="text"
+                                    value={role}
+                                    onChange={e => setRole(h, e.target.value || h)}
+                                    className="w-24 text-xs px-1.5 py-0.5 border border-indigo-200 rounded font-mono text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-indigo-50"
+                                  />
+                                  <span className="text-gray-400 font-mono text-xs">{'}}'}</span>
+                                </div>
+                              )}
+                              {isEmail && <span className="text-xs text-indigo-500 ml-1">→ contact email</span>}
+                              {isName && <span className="text-xs text-indigo-500 ml-1">→ contact name</span>}
+                            </div>
+                          </td>
+                        </tr>
                       )
                     })}
-                  </div>
-                </div>
-              )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Summary */}
+              <div className="flex items-center gap-3 mb-4 text-xs">
+                {emailCol
+                  ? <span className="text-emerald-600 font-medium">✓ Email: <code className="bg-emerald-50 px-1 rounded">{emailCol}</code></span>
+                  : <span className="text-red-500 font-medium">✗ No email column selected</span>
+                }
+                {nameCol
+                  ? <span className="text-emerald-600 font-medium">✓ Name: <code className="bg-emerald-50 px-1 rounded">{nameCol}</code></span>
+                  : <span className="text-gray-400">No name column</span>
+                }
+                {variableCols.length > 0 && (
+                  <span className="text-violet-600 font-medium">
+                    {variableCols.length} variable{variableCols.length > 1 ? 's' : ''}: {variableCols.map(([, v]) => `{{${v}}}`).join(', ')}
+                  </span>
+                )}
+              </div>
 
               {/* Group tag */}
-              <div>
+              <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Group tag (optional)</label>
                 <input type="text" value={groupTag} onChange={e => setGroupTag(e.target.value)}
                   placeholder="e.g. event-2026"
@@ -252,14 +255,14 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
                 />
               </div>
 
-              <div className="flex gap-2.5 pt-1">
+              <div className="flex gap-2.5">
                 <button onClick={() => setStep('upload')}
                   className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
                   Back
                 </button>
-                <button onClick={handleImport} disabled={!mapping.email || loading}
+                <button onClick={handleImport} disabled={!emailCol || loading}
                   className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all">
-                  {loading ? 'Importing…' : variableCount > 0 ? `Import with ${variableCount} variable${variableCount !== 1 ? 's' : ''}` : 'Import'}
+                  {loading ? 'Importing…' : `Import${variableCols.length > 0 ? ` with ${variableCols.length} variable${variableCols.length > 1 ? 's' : ''}` : ''}`}
                 </button>
               </div>
             </div>
@@ -277,9 +280,7 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
               </div>
               {result.errors.length > 0 && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-left max-h-32 overflow-y-auto">
-                  {result.errors.slice(0, 5).map((e, i) => (
-                    <p key={i} className="text-xs text-red-600">{e}</p>
-                  ))}
+                  {result.errors.slice(0, 5).map((e, i) => <p key={i} className="text-xs text-red-600">{e}</p>)}
                 </div>
               )}
               <button onClick={onClose}
