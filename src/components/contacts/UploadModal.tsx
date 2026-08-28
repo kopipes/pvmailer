@@ -36,7 +36,11 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
     setHeaders(hdrs)
 
     const emailGuess = hdrs.find(h => /email/i.test(h)) ?? ''
-    const nameGuess = hdrs.find(h => /^name$/i.test(h)) ?? hdrs.find(h => /nama/i.test(h)) ?? ''
+    const nameGuess = hdrs.find(h => /^name$/i.test(h))
+      ?? hdrs.find(h => /^nama$/i.test(h))
+      ?? hdrs.find(h => /nama lengkap/i.test(h))
+      ?? hdrs.find(h => /full.?name/i.test(h))
+      ?? ''
     setMapping({ email: emailGuess, name: nameGuess })
 
     // All non-email, non-name columns become extra variables by default
