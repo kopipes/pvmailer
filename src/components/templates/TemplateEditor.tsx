@@ -291,6 +291,19 @@ export default function TemplateEditor({ template, onClose, onSaved }: Props) {
                       <span className="text-emerald-300 group-hover:text-emerald-200 text-xs font-sans">RSVP</span>
                     </button>
                   ))}
+                  {/* Insert RSVP buttons as actual HTML */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const html = `<p><a href="{{rsvp_yes_link}}" style="display:inline-block;padding:12px 28px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;margin:4px">✓ Hadir</a>&nbsp;&nbsp;<a href="{{rsvp_no_link}}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;margin:4px">✗ Tidak Hadir</a></p>`
+                      editor?.chain().focus().insertContent(html).run()
+                      setFocusedField('body')
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm"
+                    title="Insert RSVP Yes/No buttons as clickable HTML into the email body"
+                  >
+                    + Insert RSVP Buttons
+                  </button>
                   {/* Contact variables from import */}
                   {Object.entries(contactVars).map(([v, sample]) => (
                     <button key={v} type="button" onClick={() => insertVariable(v)}
