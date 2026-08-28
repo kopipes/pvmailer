@@ -38,8 +38,10 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
     const emailGuess = hdrs.find(h => /email/i.test(h)) ?? ''
     const nameGuess = hdrs.find(h => /^name$/i.test(h))
       ?? hdrs.find(h => /^nama$/i.test(h))
-      ?? hdrs.find(h => /nama lengkap/i.test(h))
+      ?? hdrs.find(h => /nama.?lengkap/i.test(h))
+      ?? hdrs.find(h => /nama_lengkap/i.test(h))
       ?? hdrs.find(h => /full.?name/i.test(h))
+      ?? hdrs.find(h => /^nama/i.test(h))
       ?? ''
     setMapping({ email: emailGuess, name: nameGuess })
 
