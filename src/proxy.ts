@@ -9,8 +9,10 @@ export async function proxy(request: NextRequest) {
   })
 
   const isLoginPage = request.nextUrl.pathname === '/login'
+  const isRsvpPage = request.nextUrl.pathname.startsWith('/rsvp/')
+  const isRsvpApi = request.nextUrl.pathname.startsWith('/api/rsvp/')
 
-  if (!token && !isLoginPage) {
+  if (!token && !isLoginPage && !isRsvpPage && !isRsvpApi) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

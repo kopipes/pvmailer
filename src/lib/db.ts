@@ -156,4 +156,17 @@ function runMigrations(db: Database.Database) {
   if (!userCols.includes('division_id')) {
     db.exec(`ALTER TABLE users ADD COLUMN division_id TEXT REFERENCES divisions(id)`)
   }
+
+  // Add RSVP columns to recipients
+  const recipientCols = (db.pragma('table_info(recipients)') as { name: string }[]).map(c => c.name)
+  if (!recipientCols.includes('rsvp_token')) {
+    db.exec(`ALTER TABLE recipients ADD COLUMN rsvp_token TEXT`)
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_recipients_rsvp_token ON recipients(rsvp_token)`)
+  }
+  if (!recipientCols.includes('rsvp_response')) {
+    db.exec(`ALTER TABLE recipients ADD COLUMN rsvp_response TEXT`) // 'yes' | 'no' | null
+  }
+  if (!recipientCols.includes('rsvp_at')) {
+    db.exec(`ALTER TABLE recipients ADD COLUMN rsvp_at TEXT`)
+  }
 }

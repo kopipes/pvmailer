@@ -100,11 +100,12 @@ export function createCampaign(data: {
       if (!contact) continue
 
       const idemKey = `${id}:${contactId}`
+      const rsvpToken = uuidv4().replace(/-/g, '') // compact token for URL
       db.prepare(
         `INSERT OR IGNORE INTO recipients
-         (id, campaign_id, contact_id, email, name, extra_data, status, idempotency_key)
-         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`
-      ).run(uuidv4(), id, contact.id, contact.email, contact.name, contact.extra_data, idemKey)
+         (id, campaign_id, contact_id, email, name, extra_data, status, idempotency_key, rsvp_token)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+      ).run(uuidv4(), id, contact.id, contact.email, contact.name, contact.extra_data, idemKey, rsvpToken)
     }
 
     // Update total_count to actual (non-suppressed)
@@ -399,11 +400,17 @@ async function runWorker(campaignId: string) {
           ? JSON.parse(recipient.extra_data)
           : {}
 
+        const baseUrl = process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+        const rsvpBase = `${baseUrl}/rsvp/${recipient.rsvp_token}`
+
         const mergedVars: Record<string, string> = {
           ...variableMap,
           name: recipient.name ?? '',
           email: recipient.email,
           ...extra,
+          // RSVP links — only useful if template uses them
+          rsvp_yes_link: `${rsvpBase}?r=yes`,
+          rsvp_no_link: `${rsvpBase}?r=no`,
         }
 
         const subject = renderTemplate(template.subject, mergedVars)

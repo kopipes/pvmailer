@@ -88,6 +88,9 @@ export interface Recipient {
   delivered_at: string | null
   opened_at: string | null
   bounced_at: string | null
+  rsvp_token: string | null
+  rsvp_response: 'yes' | 'no' | null
+  rsvp_at: string | null
   created_at: string
   updated_at: string
 }

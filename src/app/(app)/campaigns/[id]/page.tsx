@@ -34,6 +34,10 @@ export default function CampaignDetailPage() {
   const [recipientPage, setRecipientPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
+  // RSVP
+  const [rsvp, setRsvp] = useState<{ yes: number; no: number; pending: number; responses: { email: string; name: string | null; rsvp_response: string; rsvp_at: string }[] } | null>(null)
+  const [showRsvp, setShowRsvp] = useState(false)
+
   // Preview
   const [showPreview, setShowPreview] = useState(false)
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
@@ -123,6 +127,11 @@ export default function CampaignDetailPage() {
     setLoading(false)
   }, [id])
 
+  const fetchRsvp = useCallback(async () => {
+    const res = await fetch(`/api/campaigns/${id}/rsvp`)
+    if (res.ok) setRsvp(await res.json())
+  }, [id])
+
   const fetchRecipients = useCallback(async () => {
     const params = new URLSearchParams({
       recipients: '1',
@@ -134,14 +143,14 @@ export default function CampaignDetailPage() {
     if (res.ok) setRecipients(await res.json())
   }, [id, recipientPage, recipientStatus])
 
-  useEffect(() => { fetchCampaign(); fetchRecipients() }, [fetchCampaign, fetchRecipients])
+  useEffect(() => { fetchCampaign(); fetchRecipients(); fetchRsvp() }, [fetchCampaign, fetchRecipients, fetchRsvp])
 
   // Auto-poll when running
   useEffect(() => {
     if (campaign?.status !== 'running') return
-    const interval = setInterval(() => { fetchCampaign(); fetchRecipients() }, 3000)
+    const interval = setInterval(() => { fetchCampaign(); fetchRecipients(); fetchRsvp() }, 3000)
     return () => clearInterval(interval)
-  }, [campaign?.status, fetchCampaign, fetchRecipients])
+  }, [campaign?.status, fetchCampaign, fetchRecipients, fetchRsvp])
 
   async function doAction(action: string) {
     setActionPending(action)
@@ -355,6 +364,64 @@ export default function CampaignDetailPage() {
             <span>{campaign.started_at ? `Started ${format(new Date(campaign.started_at), 'd MMM HH:mm')}` : ''}</span>
             <span>{campaign.finished_at ? `Finished ${format(new Date(campaign.finished_at), 'd MMM HH:mm')}` : ''}</span>
           </div>
+        </div>
+      )}
+
+      {/* RSVP Section */}
+      {rsvp && (rsvp.yes > 0 || rsvp.no > 0 || rsvp.pending > 0) && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">RSVP Responses</h2>
+            <button onClick={() => setShowRsvp(v => !v)}
+              className="text-xs text-indigo-600 hover:underline">
+              {showRsvp ? 'Hide details' : 'View details'}
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="bg-emerald-50 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-emerald-700">{rsvp.yes}</p>
+              <p className="text-xs text-emerald-600 mt-0.5">Attending</p>
+            </div>
+            <div className="bg-red-50 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-red-600">{rsvp.no}</p>
+              <p className="text-xs text-red-500 mt-0.5">Not attending</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-gray-500">{rsvp.pending}</p>
+              <p className="text-xs text-gray-400 mt-0.5">No reply</p>
+            </div>
+          </div>
+          {showRsvp && rsvp.responses.length > 0 && (
+            <div className="border border-gray-100 rounded-xl overflow-hidden mt-2">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-left px-4 py-2 text-gray-500 font-semibold">Email</th>
+                    <th className="text-left px-4 py-2 text-gray-500 font-semibold">Name</th>
+                    <th className="text-left px-4 py-2 text-gray-500 font-semibold">Response</th>
+                    <th className="text-left px-4 py-2 text-gray-500 font-semibold">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {rsvp.responses.map(r => (
+                    <tr key={r.email} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 text-gray-700">{r.email}</td>
+                      <td className="px-4 py-2 text-gray-500">{r.name ?? '—'}</td>
+                      <td className="px-4 py-2">
+                        {r.rsvp_response === 'yes'
+                          ? <span className="text-emerald-700 font-medium">✓ Attending</span>
+                          : <span className="text-red-600 font-medium">✗ Not attending</span>
+                        }
+                      </td>
+                      <td className="px-4 py-2 text-gray-400">
+                        {format(new Date(r.rsvp_at), 'd MMM HH:mm')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
