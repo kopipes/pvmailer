@@ -264,6 +264,16 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
                         onChange={e => setForm(f => ({ ...f, extra: { ...f.extra, [k]: e.target.value } }))}
                         className="flex-1 px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
                       />
+                      <button
+                        onClick={() => setForm(f => {
+                          const next = { ...f.extra }
+                          delete next[k]
+                          return { ...f, extra: next }
+                        })}
+                        className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+                        title="Remove this variable">
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   ))}
                 </div>
