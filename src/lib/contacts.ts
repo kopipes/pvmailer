@@ -91,6 +91,14 @@ export function deleteContact(id: string) {
   db.prepare('DELETE FROM contacts WHERE id = ?').run(id)
 }
 
+export function bulkDeleteContacts(ids: string[]): number {
+  if (!ids.length) return 0
+  const db = getDb()
+  const placeholders = ids.map(() => '?').join(',')
+  const result = db.prepare(`DELETE FROM contacts WHERE id IN (${placeholders})`).run(...ids)
+  return result.changes
+}
+
 export function updateContact(id: string, data: {
   email?: string
   name?: string

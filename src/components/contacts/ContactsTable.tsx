@@ -3,7 +3,7 @@
 import type { Contact } from '@/types'
 import { format } from 'date-fns'
 import { useState } from 'react'
-import { Pencil, ShieldOff, Shield, Trash2 } from 'lucide-react'
+import { Pencil, ShieldOff, Shield, Trash2, CheckSquare, Square } from 'lucide-react'
 
 interface Props {
   contacts: Contact[]
@@ -18,6 +18,41 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
   const [form, setForm] = useState<EditForm>({ email: '', name: '', group_tags: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
+  const allSelected = contacts.length > 0 && contacts.every(c => selected.has(c.id))
+  const someSelected = selected.size > 0
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(contacts.map(c => c.id)))
+    }
+  }
+
+  function toggleOne(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function bulkDelete() {
+    if (!confirm(`Delete ${selected.size} contact${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setBulkDeleting(true)
+    await fetch('/api/contacts', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: Array.from(selected) }),
+    })
+    setBulkDeleting(false)
+    setSelected(new Set())
+    onRefresh()
+  }
 
   function openEdit(c: Contact) {
     setEditing(c)
@@ -50,6 +85,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
   async function deleteContact(id: string) {
     if (!confirm('Delete this contact?')) return
     await fetch(`/api/contacts/${id}`, { method: 'DELETE' })
+    setSelected(prev => { const n = new Set(prev); n.delete(id); return n })
     onRefresh()
   }
 
@@ -71,10 +107,36 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
 
   return (
     <>
+      {/* Bulk action toolbar */}
+      {someSelected && (
+        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5 mb-3">
+          <span className="text-sm font-medium text-indigo-700">
+            {selected.size} contact{selected.size > 1 ? 's' : ''} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelected(new Set())}
+              className="text-xs text-indigo-500 hover:text-indigo-700 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors">
+              Clear
+            </button>
+            <button onClick={bulkDelete} disabled={bulkDeleting}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition-colors">
+              <Trash2 size={12} />
+              {bulkDeleting ? 'Deleting…' : `Delete ${selected.size}`}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100">
+              <th className="px-4 py-3 w-10">
+                <button onClick={toggleAll}
+                  className={`transition-colors ${allSelected ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'}`}>
+                  {allSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                </button>
+              </th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tags</th>
@@ -84,49 +146,58 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {contacts.map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
-                <td className="px-5 py-3.5 font-medium text-gray-900">{c.email}</td>
-                <td className="px-5 py-3.5 text-gray-600">{c.name ?? <span className="text-gray-300">—</span>}</td>
-                <td className="px-5 py-3.5">
-                  {c.group_tags
-                    ? c.group_tags.split(',').filter(Boolean).map(t => (
-                      <span key={t} className="inline-block mr-1 mb-0.5 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-md">
-                        {t.trim()}
-                      </span>
-                    ))
-                    : <span className="text-gray-300 text-xs">—</span>
-                  }
-                </td>
-                <td className="px-5 py-3.5">
-                  {c.is_suppressed
-                    ? <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-red-50 text-red-600 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400" />Suppressed
-                      </span>
-                    : <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Active
-                      </span>
-                  }
-                </td>
-                <td className="px-5 py-3.5 text-gray-400 text-xs">{format(new Date(c.created_at), 'd MMM yyyy')}</td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => openEdit(c)} title="Edit"
-                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors">
-                      <Pencil size={13} />
+            {contacts.map((c) => {
+              const isSelected = selected.has(c.id)
+              return (
+                <tr key={c.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-gray-50/60'}`}>
+                  <td className="px-4 py-3.5">
+                    <button onClick={() => toggleOne(c.id)}
+                      className={`transition-colors ${isSelected ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'}`}>
+                      {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                     </button>
-                    <button onClick={() => toggleSuppress(c)} title={c.is_suppressed ? 'Unsuppress' : 'Suppress'}
-                      className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
-                      {c.is_suppressed ? <Shield size={13} /> : <ShieldOff size={13} />}
-                    </button>
-                    <button onClick={() => deleteContact(c.id)} title="Delete"
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-5 py-3.5 font-medium text-gray-900">{c.email}</td>
+                  <td className="px-5 py-3.5 text-gray-600">{c.name ?? <span className="text-gray-300">—</span>}</td>
+                  <td className="px-5 py-3.5">
+                    {c.group_tags
+                      ? c.group_tags.split(',').filter(Boolean).map(t => (
+                        <span key={t} className="inline-block mr-1 mb-0.5 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-md">
+                          {t.trim()}
+                        </span>
+                      ))
+                      : <span className="text-gray-300 text-xs">—</span>
+                    }
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {c.is_suppressed
+                      ? <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-red-50 text-red-600 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />Suppressed
+                        </span>
+                      : <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Active
+                        </span>
+                    }
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-400 text-xs">{format(new Date(c.created_at), 'd MMM yyyy')}</td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-1 justify-end">
+                      <button onClick={() => openEdit(c)} title="Edit"
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => toggleSuppress(c)} title={c.is_suppressed ? 'Unsuppress' : 'Suppress'}
+                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
+                        {c.is_suppressed ? <Shield size={13} /> : <ShieldOff size={13} />}
+                      </button>
+                      <button onClick={() => deleteContact(c.id)} title="Delete"
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

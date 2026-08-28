@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getContacts, getAllTags, upsertContact } from '@/lib/contacts'
+import { getContacts, getAllTags, upsertContact, bulkDeleteContacts } from '@/lib/contacts'
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -40,6 +40,22 @@ export async function POST(request: NextRequest) {
       group_tags: group_tags?.trim() || undefined,
     })
     return NextResponse.json(contact, { status: 201 })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json()
+  const ids: string[] = body.ids ?? []
+  if (!ids.length) return NextResponse.json({ error: 'No ids provided' }, { status: 400 })
+
+  try {
+    const deleted = bulkDeleteContacts(ids)
+    return NextResponse.json({ deleted })
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
   }
