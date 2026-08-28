@@ -12,11 +12,14 @@ export async function POST(request: NextRequest) {
   const file = formData.get('file') as File | null
   const mappingRaw = formData.get('mapping') as string | null
   const groupTag = formData.get('groupTag') as string | null
+  const extraColumnsRaw = formData.get('extraColumns') as string | null
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   if (!mappingRaw) return NextResponse.json({ error: 'No column mapping provided' }, { status: 400 })
 
   const mapping: Record<string, string> = JSON.parse(mappingRaw)
+  // extraColumns: { variableName -> columnHeader } — only included columns
+  const extraColumns: Record<string, string> = extraColumnsRaw ? JSON.parse(extraColumnsRaw) : {}
 
   const buffer = await file.arrayBuffer()
   const workbook = new ExcelJS.Workbook()
@@ -38,6 +41,20 @@ export async function POST(request: NextRequest) {
 
   const nameCol = mapping.name ? headers.indexOf(mapping.name) : -1
 
+  // Build reverse map: columnHeader -> variableName for included extra columns
+  // extraColumns format: { variableName -> columnHeader }
+  const extraColMap: Record<string, string> = {} // columnHeader -> variableName
+  if (Object.keys(extraColumns).length > 0) {
+    Object.entries(extraColumns).forEach(([varName, colHeader]) => {
+      extraColMap[colHeader] = varName
+    })
+  } else {
+    // Legacy: no extraColumns sent — include all non-email/name columns as-is
+    headers.forEach((h, i) => {
+      if (i !== emailCol && i !== nameCol) extraColMap[h] = h
+    })
+  }
+
   const rows: Array<{ email: string; name?: string; extra_data?: string; group_tags?: string }> = []
 
   worksheet.eachRow((row, rowNumber) => {
@@ -50,9 +67,10 @@ export async function POST(request: NextRequest) {
 
     const extra: Record<string, string> = {}
     headers.forEach((h, i) => {
-      if (i === emailCol || i === nameCol) return
+      const varName = extraColMap[h]
+      if (!varName) return
       const val = String(values[i + 1] ?? '').trim()
-      if (val) extra[h] = val
+      if (val) extra[varName] = val
     })
 
     rows.push({
