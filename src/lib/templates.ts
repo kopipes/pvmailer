@@ -142,7 +142,7 @@ export function wrapEmailHtml(opts: {
           <!-- Body -->
           <tr>
             <td style="background-color:#ffffff;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 12px 12px;overflow:hidden;">
-              <div style="padding:32px 28px;font-size:15px;line-height:1.7;color:#111827;">
+              <div style="padding:16px 28px 28px 28px;font-size:15px;line-height:1.7;color:#111827;">
                 ${bodyHtml}
               </div>
             </td>
