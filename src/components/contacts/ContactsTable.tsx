@@ -9,11 +9,15 @@ interface Props {
   contacts: Contact[]
   loading: boolean
   onRefresh: () => void
+  selected: Set<string>
+  onToggleOne: (id: string) => void
+  onToggleAll: () => void
+  onBulkDelete: (ids: string[]) => void
 }
 
 interface EditForm { email: string; name: string; group_tags: string; extra: Record<string, string> }
 
-export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
+export default function ContactsTable({ contacts, loading, onRefresh, selected, onToggleOne, onToggleAll, onBulkDelete }: Props) {
   const [editing, setEditing] = useState<Contact | null>(null)
   const [form, setForm] = useState<EditForm>({ email: '', name: '', group_tags: '', extra: {} })
   const [saving, setSaving] = useState(false)
@@ -21,28 +25,10 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
   const [availableVarKeys, setAvailableVarKeys] = useState<string[]>([])
   const [newVarKey, setNewVarKey] = useState('')
   const [newVarVal, setNewVarVal] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const allSelected = contacts.length > 0 && contacts.every(c => selected.has(c.id))
   const someSelected = selected.size > 0
-
-  function toggleAll() {
-    if (allSelected) {
-      setSelected(new Set())
-    } else {
-      setSelected(new Set(contacts.map(c => c.id)))
-    }
-  }
-
-  function toggleOne(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
 
   async function bulkDelete() {
     if (!confirm(`Delete ${selected.size} contact${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return
@@ -53,7 +39,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
       body: JSON.stringify({ ids: Array.from(selected) }),
     })
     setBulkDeleting(false)
-    setSelected(new Set())
+    onBulkDelete(Array.from(selected))
     onRefresh()
   }
 
@@ -64,7 +50,6 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
     setNewVarKey('')
     setNewVarVal('')
     setError('')
-    // Fetch available variable keys from all contacts
     fetch('/api/contacts/variables').then(r => r.json()).then(d => setAvailableVarKeys(Object.keys(d ?? {})))
   }
 
@@ -98,7 +83,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
   async function deleteContact(id: string) {
     if (!confirm('Delete this contact?')) return
     await fetch(`/api/contacts/${id}`, { method: 'DELETE' })
-    setSelected(prev => { const n = new Set(prev); n.delete(id); return n })
+    onBulkDelete([id])
     onRefresh()
   }
 
@@ -127,7 +112,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
             {selected.size} contact{selected.size > 1 ? 's' : ''} selected
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setSelected(new Set())}
+            <button onClick={() => onBulkDelete([])}
               className="text-xs text-indigo-500 hover:text-indigo-700 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors">
               Clear
             </button>
@@ -145,7 +130,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
           <thead>
             <tr className="border-b border-gray-100">
               <th className="px-4 py-3 w-10">
-                <button onClick={toggleAll}
+                <button onClick={onToggleAll}
                   className={`transition-colors ${allSelected ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'}`}>
                   {allSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                 </button>
@@ -165,7 +150,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
               return (
                 <tr key={c.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-gray-50/60'}`}>
                   <td className="px-4 py-3.5">
-                    <button onClick={() => toggleOne(c.id)}
+                    <button onClick={() => onToggleOne(c.id)}
                       className={`transition-colors ${isSelected ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'}`}>
                       {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                     </button>
@@ -236,7 +221,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
 
       {editing && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-base font-semibold text-gray-900 mb-4">Edit Contact</h2>
             <div className="space-y-3">
               <div>
@@ -275,39 +260,26 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
                 ))}
                 {/* Add new variable row */}
                 <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="text"
-                    value={newVarKey}
-                    onChange={e => setNewVarKey(e.target.value)}
-                    list="available-var-keys"
-                    placeholder="variable name"
-                    className="w-28 px-2 py-1 border border-dashed border-gray-300 rounded-md text-xs font-mono focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400"
-                  />
+                  <input type="text" value={newVarKey} onChange={e => setNewVarKey(e.target.value)}
+                    list="available-var-keys" placeholder="variable name"
+                    className="w-28 px-2 py-1 border border-dashed border-gray-300 rounded-md text-xs font-mono focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400" />
                   <datalist id="available-var-keys">
                     {availableVarKeys.filter(k => !form.extra[k]).map(k => <option key={k} value={k} />)}
                   </datalist>
-                  <input
-                    type="text"
-                    value={newVarVal}
-                    onChange={e => setNewVarVal(e.target.value)}
+                  <input type="text" value={newVarVal} onChange={e => setNewVarVal(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && newVarKey.trim()) {
                         setForm(f => ({ ...f, extra: { ...f.extra, [newVarKey.trim()]: newVarVal } }))
-                        setNewVarKey('')
-                        setNewVarVal('')
+                        setNewVarKey(''); setNewVarVal('')
                       }
                     }}
                     placeholder="value"
-                    className="flex-1 px-2 py-1 border border-dashed border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400"
-                  />
-                  <button
-                    onClick={() => {
-                      if (!newVarKey.trim()) return
-                      setForm(f => ({ ...f, extra: { ...f.extra, [newVarKey.trim()]: newVarVal } }))
-                      setNewVarKey('')
-                      setNewVarVal('')
-                    }}
-                    className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors shrink-0" title="Add variable">
+                    className="flex-1 px-2 py-1 border border-dashed border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400" />
+                  <button onClick={() => {
+                    if (!newVarKey.trim()) return
+                    setForm(f => ({ ...f, extra: { ...f.extra, [newVarKey.trim()]: newVarVal } }))
+                    setNewVarKey(''); setNewVarVal('')
+                  }} className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors shrink-0" title="Add variable">
                     <Plus size={14} />
                   </button>
                 </div>

@@ -21,6 +21,10 @@ export default function ContactsPage() {
   const [showUpload, setShowUpload] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  // Selection state — lives here so it persists across page changes
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selectAllPages, setSelectAllPages] = useState(false)
+
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState<AddForm>({ email: '', name: '', group_tags: '' })
   const [addSaving, setAddSaving] = useState(false)
@@ -40,6 +44,53 @@ export default function ContactsPage() {
   }, [])
 
   useEffect(() => { fetchContacts() }, [fetchContacts])
+
+  // When filter changes, reset select-all-pages
+  useEffect(() => { setSelectAllPages(false) }, [search, tag, page])
+
+  function handleToggleOne(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    setSelectAllPages(false)
+  }
+
+  function handleToggleAll() {
+    const pageIds = result?.data.map(c => c.id) ?? []
+    const allSelected = pageIds.length > 0 && pageIds.every(id => selected.has(id))
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (allSelected) { pageIds.forEach(id => next.delete(id)); setSelectAllPages(false) }
+      else pageIds.forEach(id => next.add(id))
+      return next
+    })
+    if (allSelected) setSelectAllPages(false)
+  }
+
+  async function selectAllFiltered() {
+    const params = new URLSearchParams({ search, tag })
+    const res = await fetch(`/api/contacts/ids?${params}`)
+    const ids: string[] = await res.json()
+    setSelected(new Set(ids))
+    setSelectAllPages(true)
+  }
+
+  function clearSelection() {
+    setSelected(new Set())
+    setSelectAllPages(false)
+  }
+
+  function handleBulkDelete(deletedIds: string[]) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      deletedIds.forEach(id => next.delete(id))
+      return next
+    })
+    setSelectAllPages(false)
+  }
 
   function openAdd() {
     setAddForm({ email: '', name: '', group_tags: '' })
@@ -69,6 +120,8 @@ export default function ContactsPage() {
   }
 
   const totalPages = result ? Math.ceil(result.total / 50) : 1
+  const pageIds = result?.data.map(c => c.id) ?? []
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selected.has(id))
 
   return (
     <div className="p-8">
@@ -78,6 +131,7 @@ export default function ContactsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
           <p className="text-sm text-gray-500 mt-1">
             {result ? `${result.total.toLocaleString()} contacts` : '…'}
+            {selected.size > 0 && <span className="ml-2 text-indigo-600 font-medium">· {selected.size} selected</span>}
           </p>
         </div>
         <div className="flex gap-2">
@@ -95,7 +149,7 @@ export default function ContactsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-5">
+      <div className="flex gap-3 mb-3">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Search email or name…" value={search}
@@ -110,7 +164,42 @@ export default function ContactsPage() {
         </select>
       </div>
 
-      <ContactsTable contacts={result?.data ?? []} loading={loading} onRefresh={fetchContacts} />
+      {/* Select-all-pages banner */}
+      {result && result.total > 50 && allPageSelected && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2.5 flex items-center justify-between mb-3">
+          {selectAllPages ? (
+            <>
+              <span className="text-sm text-indigo-700">
+                All <strong>{selected.size}</strong> contacts selected.
+              </span>
+              <button onClick={clearSelection}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 underline">
+                Clear selection
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-indigo-700">
+                All <strong>{pageIds.length}</strong> contacts on this page selected.
+              </span>
+              <button onClick={selectAllFiltered}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 underline">
+                Select all {result.total.toLocaleString()} contacts{tag ? ` in "${tag}"` : ''}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      <ContactsTable
+        contacts={result?.data ?? []}
+        loading={loading}
+        onRefresh={fetchContacts}
+        selected={selected}
+        onToggleOne={handleToggleOne}
+        onToggleAll={handleToggleAll}
+        onBulkDelete={handleBulkDelete}
+      />
 
       {result && totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
