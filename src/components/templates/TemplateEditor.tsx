@@ -15,6 +15,9 @@ interface Props {
 // Always-available built-in variables
 const BUILTIN_VARS = ['name', 'email']
 
+// Auto-injected RSVP variables — available when template uses them
+const RSVP_VARS = ['rsvp_yes_link', 'rsvp_no_link']
+
 // Extract {{variable}} names from text
 function extractVars(text: string): string[] {
   const matches = text.matchAll(/\{\{(\w+)\}\}/g)
@@ -277,6 +280,15 @@ export default function TemplateEditor({ template, onClose, onSaved }: Props) {
                       className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-indigo-200 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white text-indigo-700 text-xs font-mono rounded-lg transition-colors shadow-sm">
                       <span>{`{{${v}}}`}</span>
                       <span className="text-indigo-300 text-xs ml-0.5 font-sans not-italic">built-in</span>
+                    </button>
+                  ))}
+                  {/* RSVP variables */}
+                  {RSVP_VARS.map(v => (
+                    <button key={v} type="button" onClick={() => insertVariable(v)}
+                      title="RSVP link — auto-generated per recipient. Use as href in an anchor tag."
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-emerald-200 hover:border-emerald-500 hover:bg-emerald-600 hover:text-white text-emerald-700 text-xs font-mono rounded-lg transition-colors shadow-sm group">
+                      <span>{`{{${v}}}`}</span>
+                      <span className="text-emerald-300 group-hover:text-emerald-200 text-xs font-sans">RSVP</span>
                     </button>
                   ))}
                   {/* Contact variables from import */}

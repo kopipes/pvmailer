@@ -51,8 +51,8 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
     const vars = JSON.parse(selectedTemplate.variables) as string[]
     const init: Record<string, string> = {}
     for (const v of vars) {
-      // Skip built-ins and variables already covered by contacts
-      if (['name', 'email'].includes(v)) continue
+      // Skip built-ins, RSVP auto-vars, and variables already covered by contacts
+      if (['name', 'email', 'rsvp_yes_link', 'rsvp_no_link'].includes(v)) continue
       if (contactVarKeys.includes(v)) continue
       init[v] = ''
     }
