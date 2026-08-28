@@ -44,7 +44,9 @@ export async function POST(request: NextRequest) {
   // Build reverse map: columnHeader -> variableName for included extra columns
   // extraColumns format: { variableName -> columnHeader }
   const extraColMap: Record<string, string> = {} // columnHeader -> variableName
-  if (Object.keys(extraColumns).length > 0) {
+  // Always respect extraColumns if provided (even if empty = user skipped all extras)
+  // Only use legacy fallback if extraColumns was NOT sent at all (null)
+  if (extraColumnsRaw !== null) {
     Object.entries(extraColumns).forEach(([varName, colHeader]) => {
       extraColMap[colHeader] = varName
     })
