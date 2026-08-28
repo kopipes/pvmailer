@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
   // extraColumns: { variableName -> columnHeader } — only included columns
   const extraColumns: Record<string, string> = extraColumnsRaw ? JSON.parse(extraColumnsRaw) : {}
 
+  console.log('[import] mapping:', mapping)
+  console.log('[import] extraColumns:', extraColumns)
+
   const buffer = await file.arrayBuffer()
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(buffer)
