@@ -237,7 +237,7 @@ export default function CampaignDetailPage() {
   const canEdit = campaign.status !== 'running'
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-8 max-w-5xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
         <Link href="/campaigns" className="hover:text-indigo-600">Campaigns</Link>
@@ -246,7 +246,7 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-gray-900">{campaign.name}</h1>
@@ -258,7 +258,7 @@ export default function CampaignDetailPage() {
           {deleteError && <p className="text-xs text-red-600 mt-1">{deleteError}</p>}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex items-center gap-2 flex-wrap justify-end max-w-full">
           {/* Preview — always */}
           <button onClick={openPreview}
             className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">
@@ -450,7 +450,7 @@ export default function CampaignDetailPage() {
           </select>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">

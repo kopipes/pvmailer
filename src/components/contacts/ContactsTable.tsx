@@ -125,8 +125,8 @@ export default function ContactsTable({ contacts, loading, onRefresh, selected, 
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="border-b border-gray-100">
               <th className="px-4 py-3 w-10">

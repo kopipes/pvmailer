@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <SessionProvider session={session}>
       <div className="flex min-h-screen bg-gray-50">
         <Sidebar />
-        <main className="ml-60 flex-1 min-h-screen">
+        <main className="lg:ml-60 flex-1 min-h-screen pt-14 lg:pt-0">
           {children}
         </main>
       </div>

@@ -57,7 +57,7 @@ export default function DashboardPage() {
     : '0'
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-8 max-w-5xl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
