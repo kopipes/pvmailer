@@ -61,8 +61,16 @@ export async function POST(request: NextRequest) {
 
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return
-    const values = row.values as (string | number | null | undefined)[]
-    const email = String(values[emailCol + 1] ?? '').trim()
+    const values = row.values as (string | number | null | undefined | { text?: string; hyperlink?: string })[]
+
+    // Helper to extract string value from a cell (handles hyperlink objects)
+    function cellStr(val: typeof values[number]): string {
+      if (val === null || val === undefined) return ''
+      if (typeof val === 'object' && 'text' in val) return String(val.text ?? '').trim()
+      return String(val).trim()
+    }
+
+    const email = cellStr(values[emailCol + 1])
     if (!email) return
 
     const name = nameCol >= 0 ? String(values[nameCol + 1] ?? '').trim() || undefined : undefined
