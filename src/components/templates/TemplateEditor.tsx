@@ -85,10 +85,19 @@ export default function TemplateEditor({ template, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [allVars, setAllVars] = useState<string[]>(BUILTIN_VARS)
+  const [contactVars, setContactVars] = useState<Record<string, string>>({}) // key -> sample value
   // Track which field is focused: 'subject' | 'body'
   const [focusedField, setFocusedField] = useState<'subject' | 'body'>('body')
   const subjectRef = useRef<HTMLInputElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Fetch contact variables on mount
+  useEffect(() => {
+    fetch('/api/contacts/variables')
+      .then(r => r.json())
+      .then(data => setContactVars(data ?? {}))
+      .catch(() => {})
+  }, [])
 
   const editor = useEditor({
     extensions: [
@@ -261,17 +270,24 @@ export default function TemplateEditor({ template, onClose, onSaved }: Props) {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {allVars.map(v => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => insertVariable(v)}
-                      title={`Insert {{${v}}} at cursor`}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-indigo-200 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white text-indigo-700 text-xs font-mono rounded-lg transition-colors shadow-sm"
-                    >
-                      <span className="text-indigo-400 hover:text-white">{'{{'}</span>
-                      {v}
-                      <span className="text-indigo-400 hover:text-white">{'}}'}</span>
+                  {/* Built-in variables */}
+                  {BUILTIN_VARS.map(v => (
+                    <button key={v} type="button" onClick={() => insertVariable(v)}
+                      title={`Built-in: always available`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-indigo-200 hover:border-indigo-500 hover:bg-indigo-600 hover:text-white text-indigo-700 text-xs font-mono rounded-lg transition-colors shadow-sm">
+                      <span>{`{{${v}}}`}</span>
+                      <span className="text-indigo-300 text-xs ml-0.5 font-sans not-italic">built-in</span>
+                    </button>
+                  ))}
+                  {/* Contact variables from import */}
+                  {Object.entries(contactVars).map(([v, sample]) => (
+                    <button key={v} type="button" onClick={() => insertVariable(v)}
+                      title={`From contacts — e.g. "${sample}"`}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-violet-200 hover:border-violet-500 hover:bg-violet-600 hover:text-white text-violet-700 text-xs font-mono rounded-lg transition-colors shadow-sm group">
+                      <span>{`{{${v}}}`}</span>
+                      <span className="text-violet-300 group-hover:text-violet-200 text-xs font-sans truncate max-w-[80px]" title={sample}>
+                        e.g. {sample}
+                      </span>
                     </button>
                   ))}
                   {/* Custom variable input */}
