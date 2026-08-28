@@ -24,7 +24,9 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
   const [tags, setTags] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [contactVarKeys, setContactVarKeys] = useState<string[]>([]) // keys from contacts extra_data
+  const [contactVarKeys, setContactVarKeys] = useState<string[]>([])
+  const [selectAllPages, setSelectAllPages] = useState(false) // true = all pages selected
+  const [totalFiltered, setTotalFiltered] = useState(0) // total contacts matching filter
 
   useEffect(() => {
     fetch('/api/templates?pageSize=100').then(r => r.json()).then(d => setTemplates(d.data))
@@ -63,6 +65,7 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+    setSelectAllPages(false)
   }
 
   function toggleAll() {
@@ -71,10 +74,25 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
     const allSelected = allIds.every(id => selectedContactIds.has(id))
     setSelectedContactIds(prev => {
       const next = new Set(prev)
-      if (allSelected) allIds.forEach(id => next.delete(id))
+      if (allSelected) { allIds.forEach(id => next.delete(id)); setSelectAllPages(false) }
       else allIds.forEach(id => next.add(id))
       return next
     })
+    if (!allIds.every(id => selectedContactIds.has(id))) setSelectAllPages(false)
+  }
+
+  async function selectAllFilteredContacts() {
+    const params = new URLSearchParams({ search: contactSearch, tag: contactTag })
+    const res = await fetch(`/api/contacts/ids?${params}`)
+    const ids: string[] = await res.json()
+    setSelectedContactIds(new Set(ids))
+    setSelectAllPages(true)
+    setTotalFiltered(ids.length)
+  }
+
+  function clearSelection() {
+    setSelectedContactIds(new Set())
+    setSelectAllPages(false)
   }
 
   async function create() {
@@ -180,16 +198,43 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
                     type="text"
                     placeholder="Search…"
                     value={contactSearch}
-                    onChange={e => { setContactSearch(e.target.value); setContactPage(1) }}
+                    onChange={e => { setContactSearch(e.target.value); setContactPage(1); setSelectAllPages(false) }}
                     className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
-                  <select value={contactTag} onChange={e => { setContactTag(e.target.value); setContactPage(1) }}
+                  <select value={contactTag} onChange={e => { setContactTag(e.target.value); setContactPage(1); setSelectAllPages(false) }}
                     className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">All tags</option>
                     {tags.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
+
+              {/* Select all pages banner */}
+              {contacts && contacts.total > 50 && contacts?.data.every(c => selectedContactIds.has(c.id)) && (contacts?.data.length ?? 0) > 0 && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2.5 flex items-center justify-between">
+                  {selectAllPages ? (
+                    <>
+                      <span className="text-sm text-indigo-700">
+                        All <strong>{totalFiltered}</strong> contacts selected.
+                      </span>
+                      <button onClick={clearSelection}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-800 underline">
+                        Clear selection
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-indigo-700">
+                        All <strong>{contacts.data.length}</strong> contacts on this page selected.
+                      </span>
+                      <button onClick={selectAllFilteredContacts}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-800 underline">
+                        Select all {contacts.total} contacts{contactTag ? ` in "${contactTag}"` : ''}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
