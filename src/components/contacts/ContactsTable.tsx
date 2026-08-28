@@ -3,7 +3,7 @@
 import type { Contact } from '@/types'
 import { format } from 'date-fns'
 import { useState } from 'react'
-import { Pencil, ShieldOff, Shield, Trash2, CheckSquare, Square } from 'lucide-react'
+import { Pencil, ShieldOff, Shield, Trash2, CheckSquare, Square, Plus } from 'lucide-react'
 
 interface Props {
   contacts: Contact[]
@@ -18,6 +18,9 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
   const [form, setForm] = useState<EditForm>({ email: '', name: '', group_tags: '', extra: {} })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [availableVarKeys, setAvailableVarKeys] = useState<string[]>([])
+  const [newVarKey, setNewVarKey] = useState('')
+  const [newVarVal, setNewVarVal] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
 
@@ -58,7 +61,11 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
     setEditing(c)
     const extra = c.extra_data ? (() => { try { return JSON.parse(c.extra_data) } catch { return {} } })() : {}
     setForm({ email: c.email, name: c.name ?? '', group_tags: c.group_tags ?? '', extra })
+    setNewVarKey('')
+    setNewVarVal('')
     setError('')
+    // Fetch available variable keys from all contacts
+    fetch('/api/contacts/variables').then(r => r.json()).then(d => setAvailableVarKeys(Object.keys(d ?? {})))
   }
 
   async function saveEdit() {
@@ -251,34 +258,62 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
             </div>
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
             {/* Editable extra_data variables */}
-            {Object.keys(form.extra).length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <p className="text-xs font-medium text-gray-500 mb-2">Variables</p>
-                <div className="space-y-2">
-                  {Object.entries(form.extra).map(([k, v]) => (
-                    <div key={k} className="flex items-center gap-2">
-                      <span className="font-mono bg-violet-50 text-violet-600 px-1.5 py-1 rounded text-xs shrink-0 w-28 truncate" title={k}>{`{{${k}}}`}</span>
-                      <input
-                        type="text"
-                        value={v}
-                        onChange={e => setForm(f => ({ ...f, extra: { ...f.extra, [k]: e.target.value } }))}
-                        className="flex-1 px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                      />
-                      <button
-                        onClick={() => setForm(f => {
-                          const next = { ...f.extra }
-                          delete next[k]
-                          return { ...f, extra: next }
-                        })}
-                        className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
-                        title="Remove this variable">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <p className="text-xs font-medium text-gray-500 mb-2">Variables</p>
+              <div className="space-y-2">
+                {Object.entries(form.extra).map(([k, v]) => (
+                  <div key={k} className="flex items-center gap-2">
+                    <span className="font-mono bg-violet-50 text-violet-600 px-1.5 py-1 rounded text-xs shrink-0 w-28 truncate" title={k}>{`{{${k}}}`}</span>
+                    <input type="text" value={v}
+                      onChange={e => setForm(f => ({ ...f, extra: { ...f.extra, [k]: e.target.value } }))}
+                      className="flex-1 px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                    <button onClick={() => setForm(f => { const next = { ...f.extra }; delete next[k]; return { ...f, extra: next } })}
+                      className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0" title="Remove">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+                {/* Add new variable row */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={newVarKey}
+                    onChange={e => setNewVarKey(e.target.value)}
+                    list="available-var-keys"
+                    placeholder="variable name"
+                    className="w-28 px-2 py-1 border border-dashed border-gray-300 rounded-md text-xs font-mono focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400"
+                  />
+                  <datalist id="available-var-keys">
+                    {availableVarKeys.filter(k => !form.extra[k]).map(k => <option key={k} value={k} />)}
+                  </datalist>
+                  <input
+                    type="text"
+                    value={newVarVal}
+                    onChange={e => setNewVarVal(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newVarKey.trim()) {
+                        setForm(f => ({ ...f, extra: { ...f.extra, [newVarKey.trim()]: newVarVal } }))
+                        setNewVarKey('')
+                        setNewVarVal('')
+                      }
+                    }}
+                    placeholder="value"
+                    className="flex-1 px-2 py-1 border border-dashed border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!newVarKey.trim()) return
+                      setForm(f => ({ ...f, extra: { ...f.extra, [newVarKey.trim()]: newVarVal } }))
+                      setNewVarKey('')
+                      setNewVarVal('')
+                    }}
+                    className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors shrink-0" title="Add variable">
+                    <Plus size={14} />
+                  </button>
                 </div>
+                <p className="text-xs text-gray-400">Type a variable name or pick from the dropdown. Press Enter or click + to add.</p>
               </div>
-            )}
+            </div>
             <div className="flex gap-2.5 mt-5">
               <button onClick={() => setEditing(null)}
                 className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
