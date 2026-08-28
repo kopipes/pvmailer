@@ -338,6 +338,7 @@ async function runWorker(campaignId: string) {
 
   const db = getDb()
   const resend = new Resend(process.env.RESEND_API_KEY)
+  const baseUrl = (process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 
   try {
     while (!controller.abort) {
@@ -400,7 +401,7 @@ async function runWorker(campaignId: string) {
           ? JSON.parse(recipient.extra_data)
           : {}
 
-        const baseUrl = process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+        const baseUrl = (process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')
         const rsvpBase = `${baseUrl}/rsvp/${recipient.rsvp_token}`
 
         const mergedVars: Record<string, string> = {
