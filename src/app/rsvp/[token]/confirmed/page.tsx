@@ -8,18 +8,19 @@ interface Props {
 
 export default async function RsvpConfirmedPage({ params, searchParams }: Props) {
   const { token } = await params
-  const { r, already } = await searchParams
+  const { r, already, closed } = await searchParams as { r?: string; already?: string; closed?: string }
 
   const db = getDb()
   const recipient = db
-    .prepare(`SELECT r.*, c.name as campaign_name 
-              FROM recipients r 
+    .prepare(`SELECT r.*, c.name as campaign_name
+              FROM recipients r
               JOIN campaigns c ON r.campaign_id = c.id
               WHERE r.rsvp_token = ?`)
     .get(token) as { email: string; name: string | null; campaign_name: string; rsvp_response: string } | undefined
 
   if (!recipient) return notFound()
 
+  const isClosed = closed === '1'
   const response = r ?? recipient.rsvp_response
   const isYes = response === 'yes'
   const alreadyResponded = already === '1'
@@ -80,30 +81,39 @@ export default async function RsvpConfirmedPage({ params, searchParams }: Props)
       </head>
       <body>
         <div className="card">
-          <div className={`icon ${isYes ? 'icon-yes' : 'icon-no'}`}>
-            {isYes ? '✓' : '✗'}
-          </div>
-          <h1>
-            {alreadyResponded
-              ? 'Already responded'
-              : 'Thank you for your response!'}
-          </h1>
-          <p>
-            {alreadyResponded
-              ? 'You have already submitted your response for this event.'
-              : isYes
-                ? 'We look forward to seeing you at the event. See you there!'
-                : 'We appreciate you letting us know. Hope to see you at a future event!'}
-          </p>
-          <div className={`badge ${isYes ? 'badge-yes' : 'badge-no'}`}>
-            {isYes ? '✓ Attending' : '✗ Not attending'}
-          </div>
-          {recipient.name && (
-            <p style={{ marginTop: '12px', fontSize: '14px', color: '#374151' }}>
-              {recipient.name}
-            </p>
+          {isClosed ? (
+            <>
+              <div className="icon" style={{ background: '#F3F4F6' }}>🔒</div>
+              <h1>RSVP Closed</h1>
+              <p>The RSVP for this event has been closed. Confirmation is no longer accepted.</p>
+              <p className="campaign">{recipient.campaign_name}</p>
+            </>
+          ) : (
+            <>
+              <div className={`icon ${isYes ? 'icon-yes' : 'icon-no'}`}>
+                {isYes ? '✓' : '✗'}
+              </div>
+              <h1>
+                {alreadyResponded ? 'Already responded' : 'Thank you for your response!'}
+              </h1>
+              <p>
+                {alreadyResponded
+                  ? 'You have already submitted your response for this event.'
+                  : isYes
+                    ? 'We look forward to seeing you at the event. See you there!'
+                    : 'We appreciate you letting us know. Hope to see you at a future event!'}
+              </p>
+              <div className={`badge ${isYes ? 'badge-yes' : 'badge-no'}`}>
+                {isYes ? '✓ Attending' : '✗ Not attending'}
+              </div>
+              {recipient.name && (
+                <p style={{ marginTop: '12px', fontSize: '14px', color: '#374151' }}>
+                  {recipient.name}
+                </p>
+              )}
+              <p className="campaign">{recipient.campaign_name}</p>
+            </>
           )}
-          <p className="campaign">{recipient.campaign_name}</p>
         </div>
       </body>
     </html>

@@ -47,14 +47,24 @@ export async function GET(
   const db = getDb()
 
   const recipient = db
-    .prepare('SELECT * FROM recipients WHERE rsvp_token = ?')
-    .get(token) as { id: string; rsvp_response: string | null; email: string } | undefined
+    .prepare(`SELECT r.*, c.rsvp_closes_at, c.name as campaign_name
+              FROM recipients r JOIN campaigns c ON r.campaign_id = c.id
+              WHERE r.rsvp_token = ?`)
+    .get(token) as { id: string; rsvp_response: string | null; email: string; rsvp_closes_at: string | null; campaign_name: string } | undefined
 
   if (!recipient) {
     return new NextResponse('Invalid or expired link', { status: 404 })
   }
 
   const baseUrl = getBaseUrl(request)
+
+  // Check if RSVP is closed
+  if (recipient.rsvp_closes_at) {
+    const closes = new Date(recipient.rsvp_closes_at.replace(' ', 'T') + 'Z')
+    if (new Date() > closes) {
+      return NextResponse.redirect(`${baseUrl}/rsvp/${token}/confirmed?closed=1`)
+    }
+  }
 
   // Already responded — redirect to confirmed page anyway
   if (recipient.rsvp_response) {

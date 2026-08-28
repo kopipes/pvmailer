@@ -37,6 +37,8 @@ export default function CampaignDetailPage() {
   // RSVP
   const [rsvp, setRsvp] = useState<{ yes: number; no: number; pending: number; responses: { email: string; name: string | null; rsvp_response: string; rsvp_at: string }[] } | null>(null)
   const [showRsvp, setShowRsvp] = useState(false)
+  const [rsvpClosed, setRsvpClosed] = useState(false)
+  const [rsvpClosing, setRsvpClosing] = useState(false)
 
   // Preview
   const [showPreview, setShowPreview] = useState(false)
@@ -129,8 +131,23 @@ export default function CampaignDetailPage() {
 
   const fetchRsvp = useCallback(async () => {
     const res = await fetch(`/api/campaigns/${id}/rsvp`)
-    if (res.ok) setRsvp(await res.json())
+    if (res.ok) {
+      const data = await res.json()
+      setRsvp(data)
+      setRsvpClosed(!!data.rsvp_closes_at && new Date(data.rsvp_closes_at + 'Z') < new Date())
+    }
   }, [id])
+
+  async function toggleRsvp() {
+    setRsvpClosing(true)
+    await fetch(`/api/campaigns/${id}/rsvp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: rsvpClosed ? 'open' : 'close' }),
+    })
+    setRsvpClosing(false)
+    fetchRsvp()
+  }
 
   const fetchRecipients = useCallback(async () => {
     const params = new URLSearchParams({
@@ -371,18 +388,28 @@ export default function CampaignDetailPage() {
       {rsvp && (rsvp.yes > 0 || rsvp.no > 0 || rsvp.pending > 0) && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-900">RSVP Responses</h2>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">RSVP Responses</h2>
+              {rsvpClosed && (
+                <span className="text-xs text-red-500 font-medium">🔒 RSVP closed — recipients cannot respond</span>
+              )}
+            </div>
             <div className="flex items-center gap-3">
-              <a
-                href={`/api/campaigns/${id}/rsvp/export`}
-                download
-                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-              >
+              <button onClick={toggleRsvp} disabled={rsvpClosing}
+                className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60 ${
+                  rsvpClosed
+                    ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                    : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                }`}>
+                {rsvpClosing ? '...' : rsvpClosed ? '🔓 Open RSVP' : '🔒 Close RSVP'}
+              </button>
+              <a href={`/api/campaigns/${id}/rsvp/export`} download
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors">
                 Export Excel
               </a>
               <button onClick={() => setShowRsvp(v => !v)}
                 className="text-xs text-indigo-600 hover:underline">
-                {showRsvp ? 'Hide details' : 'View details'}
+                {showRsvp ? 'Hide' : 'View details'}
               </button>
             </div>
           </div>

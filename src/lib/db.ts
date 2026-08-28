@@ -169,4 +169,10 @@ function runMigrations(db: Database.Database) {
   if (!recipientCols.includes('rsvp_at')) {
     db.exec(`ALTER TABLE recipients ADD COLUMN rsvp_at TEXT`)
   }
+
+  // Add rsvp_closes_at to campaigns
+  const campaignCols = (db.pragma('table_info(campaigns)') as { name: string }[]).map(c => c.name)
+  if (!campaignCols.includes('rsvp_closes_at')) {
+    db.exec(`ALTER TABLE campaigns ADD COLUMN rsvp_closes_at TEXT`)
+  }
 }
