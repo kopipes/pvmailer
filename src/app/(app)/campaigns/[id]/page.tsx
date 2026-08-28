@@ -372,10 +372,19 @@ export default function CampaignDetailPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-900">RSVP Responses</h2>
-            <button onClick={() => setShowRsvp(v => !v)}
-              className="text-xs text-indigo-600 hover:underline">
-              {showRsvp ? 'Hide details' : 'View details'}
-            </button>
+            <div className="flex items-center gap-3">
+              <a
+                href={`/api/campaigns/${id}/rsvp/export`}
+                download
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+              >
+                Export Excel
+              </a>
+              <button onClick={() => setShowRsvp(v => !v)}
+                className="text-xs text-indigo-600 hover:underline">
+                {showRsvp ? 'Hide details' : 'View details'}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3 mb-3">
             <div className="bg-emerald-50 rounded-lg p-3 text-center">
