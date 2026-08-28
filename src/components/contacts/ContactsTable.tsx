@@ -175,14 +175,14 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
                       const keys = Object.keys(extra)
                       if (!keys.length) return <span className="text-gray-300 text-xs">—</span>
                       return (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="space-y-0.5">
                           {keys.slice(0, 3).map(k => (
-                            <span key={k} title={`${k}: ${extra[k]}`}
-                              className="inline-block px-1.5 py-0.5 bg-violet-50 text-violet-600 text-xs font-mono rounded">
-                              {`{{${k}}}`}
-                            </span>
+                            <div key={k} className="flex items-center gap-1.5 text-xs">
+                              <span className="text-gray-400 font-mono shrink-0">{k}:</span>
+                              <span className="text-gray-700 truncate max-w-[120px]" title={extra[k]}>{extra[k]}</span>
+                            </div>
                           ))}
-                          {keys.length > 3 && <span className="text-xs text-gray-400">+{keys.length - 3}</span>}
+                          {keys.length > 3 && <span className="text-xs text-gray-400">+{keys.length - 3} more</span>}
                         </div>
                       )
                     })()}
