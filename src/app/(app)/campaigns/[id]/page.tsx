@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import type { CampaignWithTemplate, Recipient, PaginatedResult } from '@/types'
-import { format } from 'date-fns'
+import { fmtDateTime } from '@/lib/date'
 import Link from 'next/link'
 
 const STATUS_STYLES: Record<string, string> = {
@@ -361,8 +361,8 @@ export default function CampaignDetailPage() {
             />
           </div>
           <div className="flex justify-between text-xs text-gray-400 mt-1">
-            <span>{campaign.started_at ? `Started ${format(new Date(campaign.started_at), 'd MMM HH:mm')}` : ''}</span>
-            <span>{campaign.finished_at ? `Finished ${format(new Date(campaign.finished_at), 'd MMM HH:mm')}` : ''}</span>
+            <span>{campaign.started_at ? `Started ${fmtDateTime(campaign.started_at)}` : ''}</span>
+            <span>{campaign.finished_at ? `Finished ${fmtDateTime(campaign.finished_at)}` : ''}</span>
           </div>
         </div>
       )}
@@ -414,7 +414,7 @@ export default function CampaignDetailPage() {
                         }
                       </td>
                       <td className="px-4 py-2 text-gray-400">
-                        {format(new Date(r.rsvp_at), 'd MMM HH:mm')}
+                        {fmtDateTime(r.rsvp_at)}
                       </td>
                     </tr>
                   ))}
@@ -465,9 +465,9 @@ export default function CampaignDetailPage() {
                     {r.last_error && <p className="text-xs text-red-500 mt-0.5 max-w-xs truncate" title={r.last_error}>{r.last_error}</p>}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{r.attempt_count}</td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
-                    {r.sent_at ? format(new Date(r.sent_at), 'd MMM HH:mm') : '—'}
-                  </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {r.sent_at ? fmtDateTime(r.sent_at) : '—'}
+                      </td>
                   <td className="px-4 py-3 text-right">
                     {(r.status === 'failed' || r.status === 'bounced') && (
                       <button

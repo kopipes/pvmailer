@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { DashboardStats } from '@/types'
-import { format } from 'date-fns'
+import { fmtToday } from '@/lib/date'
 import { Users, FileText, Send, TrendingUp, Zap, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
@@ -61,7 +61,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
+        <p className="text-sm text-gray-500 mt-1">{fmtToday('EEEE, d MMMM yyyy')}</p>
       </div>
 
       {/* Running banner */}

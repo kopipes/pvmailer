@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import type { CampaignWithTemplate, PaginatedResult } from '@/types'
-import { format } from 'date-fns'
+import { fmtDate } from '@/lib/date'
 import CampaignWizard from '@/components/campaigns/CampaignWizard'
 import Link from 'next/link'
 import { Send, Plus, Search, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
@@ -137,7 +137,7 @@ export default function CampaignsPage() {
                       </p>
                     </td>
                     <td className="px-5 py-3.5 text-gray-400 text-xs whitespace-nowrap">
-                      {format(new Date(c.created_at), 'd MMM yyyy')}
+                      {fmtDate(c.created_at)}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 justify-end">

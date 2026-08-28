@@ -1,7 +1,7 @@
 'use client'
 
 import type { Contact } from '@/types'
-import { format } from 'date-fns'
+import { fmtDate } from '@/lib/date'
 import { useState } from 'react'
 import { Pencil, ShieldOff, Shield, Trash2, CheckSquare, Square, Plus } from 'lucide-react'
 
@@ -195,7 +195,7 @@ export default function ContactsTable({ contacts, loading, onRefresh, selected, 
                         </span>
                     }
                   </td>
-                  <td className="px-5 py-3.5 text-gray-400 text-xs">{format(new Date(c.created_at), 'd MMM yyyy')}</td>
+                  <td className="px-5 py-3.5 text-gray-400 text-xs">{fmtDate(c.created_at)}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-1 justify-end">
                       <button onClick={() => openEdit(c)} title="Edit"

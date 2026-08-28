@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { WebhookEventLog } from '@/types'
-import { format } from 'date-fns'
+import { fmtDateTimeSec } from '@/lib/date'
 
 const EVENT_COLORS: Record<string, string> = {
   'email.sent': 'bg-blue-50 text-blue-700',
@@ -66,7 +66,7 @@ export default function LogsPage() {
                 <>
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                      {format(new Date(log.created_at), 'd MMM HH:mm:ss')}
+                      {fmtDateTimeSec(log.created_at)}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${EVENT_COLORS[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>

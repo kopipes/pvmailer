@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { Template } from '@/types'
 import TemplateEditor from '@/components/templates/TemplateEditor'
-import { format } from 'date-fns'
+import { fmtDate } from '@/lib/date'
 import { FileText, Plus, Search, Copy, Pencil, Trash2 } from 'lucide-react'
 
 export default function TemplatesPage() {
@@ -83,7 +83,7 @@ export default function TemplatesPage() {
                 <span className="truncate">{t.from_name} &lt;{t.from_email}&gt;</span>
               </div>
               <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-50">
-                <span className="text-xs text-gray-400">{format(new Date(t.updated_at), 'd MMM yyyy')}</span>
+                <span className="text-xs text-gray-400">{fmtDate(t.updated_at)}</span>
                 <div className="flex items-center gap-1">
                   <button onClick={() => setEditing(t)} title="Edit"
                     className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors">
