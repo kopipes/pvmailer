@@ -338,7 +338,27 @@ async function runWorker(campaignId: string) {
 
   const db = getDb()
   const resend = new Resend(process.env.RESEND_API_KEY)
-  const baseUrl = (process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+
+  // Read base URL from env — use fs to ensure runtime value, not build-time bundle
+  let baseUrl = process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? ''
+  if (!baseUrl) {
+    try {
+      const fs = await import('fs')
+      const envFile = fs.readFileSync(process.cwd() + '/.env', 'utf8')
+      for (const line of envFile.split('\n')) {
+        const eq = line.indexOf('=')
+        if (eq > 0) {
+          const key = line.slice(0, eq).trim()
+          const val = line.slice(eq + 1).trim()
+          if (key === 'APP_BASE_URL' || key === 'NEXTAUTH_URL') {
+            baseUrl = val
+            if (key === 'APP_BASE_URL') break
+          }
+        }
+      }
+    } catch {}
+  }
+  baseUrl = (baseUrl || 'http://localhost:3000').replace(/\/$/, '')
 
   try {
     while (!controller.abort) {
