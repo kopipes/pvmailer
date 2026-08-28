@@ -295,7 +295,11 @@ export default function TemplateEditor({ template, onClose, onSaved }: Props) {
                   <button
                     type="button"
                     onClick={() => {
-                      const html = `<p><a href="{{rsvp_yes_link}}" style="display:inline-block;padding:12px 28px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;margin:4px">✓ Hadir</a>&nbsp;&nbsp;<a href="{{rsvp_no_link}}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;margin:4px">✗ Tidak Hadir</a></p>`
+                      const html = `<p style="text-align:center;margin:24px 0">
+<a href="{{rsvp_yes_link}}" style="display:inline-block;padding:14px 32px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;margin:6px;letter-spacing:0.3px;box-shadow:0 2px 8px rgba(22,163,74,0.3)">✓ &nbsp;Ya, Saya Hadir</a>
+&nbsp;&nbsp;
+<a href="{{rsvp_no_link}}" style="display:inline-block;padding:14px 32px;background:#dc2626;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;margin:6px;letter-spacing:0.3px;box-shadow:0 2px 8px rgba(220,38,38,0.3)">✗ &nbsp;Maaf, Saya Tidak Bisa Hadir</a>
+</p>`
                       editor?.chain().focus().insertContent(html).run()
                       setFocusedField('body')
                     }}
