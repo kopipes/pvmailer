@@ -11,11 +11,11 @@ interface Props {
   onRefresh: () => void
 }
 
-interface EditForm { email: string; name: string; group_tags: string }
+interface EditForm { email: string; name: string; group_tags: string; extra: Record<string, string> }
 
 export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
   const [editing, setEditing] = useState<Contact | null>(null)
-  const [form, setForm] = useState<EditForm>({ email: '', name: '', group_tags: '' })
+  const [form, setForm] = useState<EditForm>({ email: '', name: '', group_tags: '', extra: {} })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -56,7 +56,8 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
 
   function openEdit(c: Contact) {
     setEditing(c)
-    setForm({ email: c.email, name: c.name ?? '', group_tags: c.group_tags ?? '' })
+    const extra = c.extra_data ? (() => { try { return JSON.parse(c.extra_data) } catch { return {} } })() : {}
+    setForm({ email: c.email, name: c.name ?? '', group_tags: c.group_tags ?? '', extra })
     setError('')
   }
 
@@ -66,7 +67,12 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
     const res = await fetch(`/api/contacts/${editing!.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: form.email.trim(), name: form.name.trim(), group_tags: form.group_tags.trim() }),
+      body: JSON.stringify({
+        email: form.email.trim(),
+        name: form.name.trim(),
+        group_tags: form.group_tags.trim(),
+        extra_data: Object.keys(form.extra).length ? JSON.stringify(form.extra) : null,
+      }),
     })
     setSaving(false)
     if (res.ok) { setEditing(null); onRefresh() }
@@ -244,25 +250,25 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
               </div>
             </div>
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
-            {/* Show extra_data variables read-only */}
-            {(() => {
-              const extra = editing?.extra_data ? (() => { try { return JSON.parse(editing.extra_data) } catch { return {} } })() : {}
-              const keys = Object.keys(extra)
-              if (!keys.length) return null
-              return (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs font-medium text-gray-500 mb-2">Variables from import</p>
-                  <div className="space-y-1.5">
-                    {keys.map(k => (
-                      <div key={k} className="flex items-center gap-2 text-xs">
-                        <span className="font-mono bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded shrink-0">{`{{${k}}}`}</span>
-                        <span className="text-gray-500 truncate">{extra[k]}</span>
-                      </div>
-                    ))}
-                  </div>
+            {/* Editable extra_data variables */}
+            {Object.keys(form.extra).length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-500 mb-2">Variables</p>
+                <div className="space-y-2">
+                  {Object.entries(form.extra).map(([k, v]) => (
+                    <div key={k} className="flex items-center gap-2">
+                      <span className="font-mono bg-violet-50 text-violet-600 px-1.5 py-1 rounded text-xs shrink-0 w-28 truncate" title={k}>{`{{${k}}}`}</span>
+                      <input
+                        type="text"
+                        value={v}
+                        onChange={e => setForm(f => ({ ...f, extra: { ...f.extra, [k]: e.target.value } }))}
+                        className="flex-1 px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
+                  ))}
                 </div>
-              )
-            })()}
+              </div>
+            )}
             <div className="flex gap-2.5 mt-5">
               <button onClick={() => setEditing(null)}
                 className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>

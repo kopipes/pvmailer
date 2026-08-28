@@ -24,10 +24,12 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
   const [tags, setTags] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [contactVarKeys, setContactVarKeys] = useState<string[]>([]) // keys from contacts extra_data
 
   useEffect(() => {
     fetch('/api/templates?pageSize=100').then(r => r.json()).then(d => setTemplates(d.data))
     fetch('/api/contacts?tags=1').then(r => r.json()).then(setTags)
+    fetch('/api/contacts/variables').then(r => r.json()).then(d => setContactVarKeys(Object.keys(d ?? {})))
   }, [])
 
   useEffect(() => {
@@ -41,16 +43,19 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
     fetch(`/api/contacts?${params}`).then(r => r.json()).then(setContacts)
   }, [contactPage, contactSearch, contactTag])
 
-  // Init variables when template selected
+  // Init variables when template selected — exclude contact variables and builtins
   useEffect(() => {
     if (!selectedTemplate?.variables) return
     const vars = JSON.parse(selectedTemplate.variables) as string[]
     const init: Record<string, string> = {}
     for (const v of vars) {
-      if (!['name', 'email'].includes(v)) init[v] = ''
+      // Skip built-ins and variables already covered by contacts
+      if (['name', 'email'].includes(v)) continue
+      if (contactVarKeys.includes(v)) continue
+      init[v] = ''
     }
     setVariables(init)
-  }, [selectedTemplate])
+  }, [selectedTemplate, contactVarKeys])
 
   function toggleContact(id: string) {
     setSelectedContactIds(prev => {
@@ -230,15 +235,46 @@ export default function CampaignWizard({ onClose, onCreated }: Props) {
 
           {step === 'variables' && (
             <div className="space-y-4">
+              {/* Auto-filled variables from contacts */}
+              {(() => {
+                const autoFilled = selectedTemplate?.variables
+                  ? (JSON.parse(selectedTemplate.variables) as string[])
+                      .filter(v => !['name', 'email'].includes(v) && contactVarKeys.includes(v))
+                  : []
+                if (!autoFilled.length) return null
+                return (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-emerald-700 mb-2">Auto-filled from contacts</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['name', 'email', ...autoFilled].map(v => (
+                        <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-mono rounded-md">
+                          {`{{${v}}}`}
+                          <span className="text-emerald-400 font-sans text-xs">✓</span>
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-emerald-600 mt-2">These variables are automatically filled from each contact's data — no action needed.</p>
+                  </div>
+                )
+              })()}
+
               <p className="text-sm text-gray-600">
-                Set global values for template variables. <code className="bg-gray-100 px-1 rounded">{'{{name}}'}</code> and <code className="bg-gray-100 px-1 rounded">{'{{email}}'}</code> are auto-filled per recipient.
+                {Object.keys(variables).length > 0
+                  ? 'Set campaign-wide values for these variables — same for all recipients.'
+                  : ''}
               </p>
               {Object.keys(variables).length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">No global variables needed for this template.</p>
+                <div className="text-center py-8 bg-gray-50 rounded-xl">
+                  <p className="text-sm font-medium text-gray-600">No campaign variables needed</p>
+                  <p className="text-xs text-gray-400 mt-1">All template variables are auto-filled from contacts.</p>
+                </div>
               ) : (
                 Object.keys(variables).map(key => (
                   <div key={key}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{`{{${key}}}`}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <code className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-xs">{`{{${key}}}`}</code>
+                      <span className="text-xs text-gray-400 ml-2">same for all recipients</span>
+                    </label>
                     <input
                       value={variables[key]}
                       onChange={e => setVariables(v => ({ ...v, [key]: e.target.value }))}

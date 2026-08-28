@@ -103,16 +103,18 @@ export function updateContact(id: string, data: {
   email?: string
   name?: string
   group_tags?: string
+  extra_data?: string | null
 }): Contact {
   const db = getDb()
   const existing = getContactById(id)
   if (!existing) throw new Error('Contact not found')
   db.prepare(
-    `UPDATE contacts SET email = ?, name = ?, group_tags = ?, updated_at = datetime('now') WHERE id = ?`
+    `UPDATE contacts SET email = ?, name = ?, group_tags = ?, extra_data = ?, updated_at = datetime('now') WHERE id = ?`
   ).run(
     data.email ?? existing.email,
     data.name !== undefined ? (data.name || null) : existing.name,
     data.group_tags !== undefined ? (data.group_tags || null) : existing.group_tags,
+    data.extra_data !== undefined ? data.extra_data : existing.extra_data,
     id
   )
   return getContactById(id)!

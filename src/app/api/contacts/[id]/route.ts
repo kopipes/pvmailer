@@ -23,6 +23,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       email: body.email.trim(),
       name: body.name ?? '',
       group_tags: body.group_tags ?? '',
+      extra_data: body.extra_data !== undefined ? body.extra_data : undefined,
     })
     return NextResponse.json(updated)
   } catch (e) {
