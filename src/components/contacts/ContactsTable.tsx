@@ -140,6 +140,7 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tags</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Variables</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Added</th>
               <th className="px-5 py-3" />
@@ -167,6 +168,24 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
                       ))
                       : <span className="text-gray-300 text-xs">—</span>
                     }
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {(() => {
+                      const extra = c.extra_data ? (() => { try { return JSON.parse(c.extra_data) } catch { return {} } })() : {}
+                      const keys = Object.keys(extra)
+                      if (!keys.length) return <span className="text-gray-300 text-xs">—</span>
+                      return (
+                        <div className="flex flex-wrap gap-1">
+                          {keys.slice(0, 3).map(k => (
+                            <span key={k} title={`${k}: ${extra[k]}`}
+                              className="inline-block px-1.5 py-0.5 bg-violet-50 text-violet-600 text-xs font-mono rounded">
+                              {`{{${k}}}`}
+                            </span>
+                          ))}
+                          {keys.length > 3 && <span className="text-xs text-gray-400">+{keys.length - 3}</span>}
+                        </div>
+                      )
+                    })()}
                   </td>
                   <td className="px-5 py-3.5">
                     {c.is_suppressed
@@ -225,6 +244,25 @@ export default function ContactsTable({ contacts, loading, onRefresh }: Props) {
               </div>
             </div>
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
+            {/* Show extra_data variables read-only */}
+            {(() => {
+              const extra = editing?.extra_data ? (() => { try { return JSON.parse(editing.extra_data) } catch { return {} } })() : {}
+              const keys = Object.keys(extra)
+              if (!keys.length) return null
+              return (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-500 mb-2">Variables from import</p>
+                  <div className="space-y-1.5">
+                    {keys.map(k => (
+                      <div key={k} className="flex items-center gap-2 text-xs">
+                        <span className="font-mono bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded shrink-0">{`{{${k}}}`}</span>
+                        <span className="text-gray-500 truncate">{extra[k]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
             <div className="flex gap-2.5 mt-5">
               <button onClick={() => setEditing(null)}
                 className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
