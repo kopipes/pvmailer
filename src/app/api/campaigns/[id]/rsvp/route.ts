@@ -28,8 +28,8 @@ export async function GET(
   ).get(id) as { c: number }).c
 
   const responses = db.prepare(
-    `SELECT email, name, rsvp_response, rsvp_at FROM recipients WHERE campaign_id = ? AND rsvp_response IS NOT NULL ORDER BY rsvp_at DESC`
-  ).all(id) as { email: string; name: string | null; rsvp_response: string; rsvp_at: string }[]
+    `SELECT id, email, name, rsvp_response, rsvp_at FROM recipients WHERE campaign_id = ? AND rsvp_response IS NOT NULL ORDER BY rsvp_at DESC`
+  ).all(id) as { id: string; email: string; name: string | null; rsvp_response: string; rsvp_at: string }[]
 
   return NextResponse.json({ yes, no, pending, responses, rsvp_closes_at: campaign?.rsvp_closes_at ?? null })
 }

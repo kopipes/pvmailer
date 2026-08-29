@@ -35,7 +35,7 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true)
 
   // RSVP
-  const [rsvp, setRsvp] = useState<{ yes: number; no: number; pending: number; responses: { email: string; name: string | null; rsvp_response: string; rsvp_at: string }[] } | null>(null)
+  const [rsvp, setRsvp] = useState<{ yes: number; no: number; pending: number; responses: { id: string; email: string; name: string | null; rsvp_response: string; rsvp_at: string }[]; rsvp_closes_at: string | null } | null>(null)
   const [showRsvp, setShowRsvp] = useState(false)
   const [rsvpClosed, setRsvpClosed] = useState(false)
   const [rsvpClosing, setRsvpClosing] = useState(false)
@@ -436,11 +436,12 @@ export default function CampaignDetailPage() {
                     <th className="text-left px-4 py-2 text-gray-500 font-semibold">Name</th>
                     <th className="text-left px-4 py-2 text-gray-500 font-semibold">Response</th>
                     <th className="text-left px-4 py-2 text-gray-500 font-semibold">Time</th>
+                    <th className="px-4 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {rsvp.responses.map(r => (
-                    <tr key={r.email} className="hover:bg-gray-50">
+                    <tr key={r.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 text-gray-700">{r.email}</td>
                       <td className="px-4 py-2 text-gray-500">{r.name ?? '—'}</td>
                       <td className="px-4 py-2">
@@ -451,6 +452,39 @@ export default function CampaignDetailPage() {
                       </td>
                       <td className="px-4 py-2 text-gray-400">
                         {fmtDateTime(r.rsvp_at)}
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-1">
+                          {/* Toggle response */}
+                          <button
+                            onClick={async () => {
+                              const newResponse = r.rsvp_response === 'yes' ? 'no' : 'yes'
+                              await fetch(`/api/campaigns/${id}/rsvp/${r.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ response: newResponse }),
+                              })
+                              fetchRsvp()
+                            }}
+                            title={`Change to ${r.rsvp_response === 'yes' ? 'Not attending' : 'Attending'}`}
+                            className="text-xs px-2 py-0.5 border border-gray-200 hover:bg-gray-100 rounded text-gray-500 transition-colors">
+                            Switch
+                          </button>
+                          {/* Reset */}
+                          <button
+                            onClick={async () => {
+                              await fetch(`/api/campaigns/${id}/rsvp/${r.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ response: null }),
+                              })
+                              fetchRsvp()
+                            }}
+                            title="Reset — allows recipient to re-click their link"
+                            className="text-xs px-2 py-0.5 border border-red-100 hover:bg-red-50 rounded text-red-400 transition-colors">
+                            Reset
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
