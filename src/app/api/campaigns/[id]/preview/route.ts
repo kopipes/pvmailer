@@ -16,6 +16,14 @@ export async function GET(
   const { searchParams } = new URL(request.url)
   // Optional: preview for a specific recipient id, otherwise use first recipient
   const recipientId = searchParams.get('recipient_id')
+  const reminderText = searchParams.get('reminderText') ?? ''
+
+  // Build reminder prefix HTML if provided
+  const reminderHtml = reminderText
+    ? `<div style="background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#713F12;">
+        <strong>📢 Pengingat:</strong> ${reminderText}
+       </div>`
+    : ''
 
   const db = getDb()
 
@@ -56,9 +64,10 @@ export async function GET(
   }
 
   const subject = renderTemplate(template.subject, mergedVars)
-  const bodyHtml = renderTemplate(template.body_html, mergedVars)
+  const subjectDisplay = reminderText ? `[Reminder] ${subject}` : subject
+  const bodyHtml = reminderHtml + renderTemplate(template.body_html, mergedVars)
   const html = wrapEmailHtml({
-    subject,
+    subject: subjectDisplay,
     fromName: template.from_name,
     fromEmail: template.from_email,
     bodyHtml,

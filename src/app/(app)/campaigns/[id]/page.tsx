@@ -45,6 +45,19 @@ export default function CampaignDetailPage() {
   const [reminderText, setReminderText] = useState('')
   const [reminderSending, setReminderSending] = useState(false)
   const [reminderResult, setReminderResult] = useState<{ sent: number; failed: number } | null>(null)
+  const [reminderTab, setReminderTab] = useState<'compose' | 'preview'>('compose')
+  const [reminderPreviewHtml, setReminderPreviewHtml] = useState<string | null>(null)
+  const [reminderPreviewLoading, setReminderPreviewLoading] = useState(false)
+
+  async function loadReminderPreview() {
+    setReminderTab('preview')
+    setReminderPreviewLoading(true)
+    const params = new URLSearchParams()
+    if (reminderText) params.set('reminderText', reminderText)
+    const res = await fetch(`/api/campaigns/${id}/preview?${params}`)
+    if (res.ok) setReminderPreviewHtml(await res.text())
+    setReminderPreviewLoading(false)
+  }
 
   // Preview
   const [showPreview, setShowPreview] = useState(false)
@@ -779,21 +792,20 @@ export default function CampaignDetailPage() {
       {/* ── Send Reminder Modal ─────────────────────────────────────────── */}
       {showReminder && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-1">Send RSVP Reminder</h2>
-            <p className="text-xs text-gray-400 mb-4">
-              Sends a reminder email to <strong>{rsvp?.pending ?? 0} recipient{(rsvp?.pending ?? 0) !== 1 ? 's' : ''}</strong> who haven't responded yet.
-              Their original RSVP link is reused — responses update the same campaign.
-            </p>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
+            <div className="px-6 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-base font-semibold text-gray-900">Send RSVP Reminder</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {rsvp?.pending ?? 0} recipient{(rsvp?.pending ?? 0) !== 1 ? 's' : ''} without RSVP response
+              </p>
+            </div>
 
             {reminderResult ? (
-              <div className="space-y-3">
+              <div className="p-6 space-y-4">
                 <div className={`rounded-xl p-4 text-center ${reminderResult.failed === 0 ? 'bg-emerald-50' : 'bg-amber-50'}`}>
-                  <p className="text-2xl font-bold text-gray-900">{reminderResult.sent}</p>
+                  <p className="text-3xl font-bold text-gray-900">{reminderResult.sent}</p>
                   <p className="text-sm text-gray-500">reminders sent</p>
-                  {reminderResult.failed > 0 && (
-                    <p className="text-xs text-red-500 mt-1">{reminderResult.failed} failed</p>
-                  )}
+                  {reminderResult.failed > 0 && <p className="text-xs text-red-500 mt-1">{reminderResult.failed} failed</p>}
                 </div>
                 <button onClick={() => setShowReminder(false)}
                   className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg">
@@ -802,45 +814,100 @@ export default function CampaignDetailPage() {
               </div>
             ) : (
               <>
-                <div className="mb-4">
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Reminder note <span className="text-gray-400 font-normal">(shown at top of email)</span>
-                  </label>
-                  <textarea
-                    autoFocus
-                    rows={3}
-                    value={reminderText}
-                    onChange={e => setReminderText(e.target.value)}
-                    placeholder="e.g. Mohon segera konfirmasi kehadiranmu sebelum 5 September 2026."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  />
-                </div>
-                <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
-                  <p className="text-xs text-amber-700">Email subject will be prefixed with <strong>[Reminder]</strong></p>
-                </div>
-                <div className="flex gap-2.5">
-                  <button onClick={() => setShowReminder(false)}
-                    className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-                    Cancel
+                {/* Tabs */}
+                <div className="flex border-b border-gray-100 px-6 shrink-0">
+                  <button onClick={() => setReminderTab('compose')}
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${reminderTab === 'compose' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                    Compose
                   </button>
-                  <button
-                    onClick={async () => {
-                      setReminderSending(true)
-                      const res = await fetch(`/api/campaigns/${id}/rsvp/reminder`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ reminderText }),
-                      })
-                      const data = await res.json()
-                      setReminderResult(data)
-                      setReminderSending(false)
-                      fetchRsvp()
-                    }}
-                    disabled={reminderSending}
-                    className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all">
-                    {reminderSending ? 'Sending…' : `Send to ${rsvp?.pending ?? 0}`}
+                  <button onClick={loadReminderPreview}
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${reminderTab === 'preview' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                    Preview Email
                   </button>
                 </div>
+
+                {reminderTab === 'compose' && (
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                        Reminder note <span className="text-gray-400 font-normal">(shown as yellow banner at top of email)</span>
+                      </label>
+                      <textarea rows={4} value={reminderText} onChange={e => setReminderText(e.target.value)}
+                        placeholder="e.g. Mohon segera konfirmasi kehadiranmu sebelum 5 September 2026."
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      />
+                    </div>
+                    <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                      <p className="text-xs text-amber-700">Subject will be prefixed with <strong>[Reminder]</strong> · Same RSVP link is reused</p>
+                    </div>
+                    <div className="flex gap-2.5">
+                      <button onClick={() => setShowReminder(false)}
+                        className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                        Cancel
+                      </button>
+                      <button onClick={loadReminderPreview}
+                        className="px-4 py-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg transition-colors">
+                        Preview
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setReminderSending(true)
+                          const res = await fetch(`/api/campaigns/${id}/rsvp/reminder`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reminderText }),
+                          })
+                          const data = await res.json()
+                          setReminderResult(data)
+                          setReminderSending(false)
+                          fetchRsvp()
+                        }}
+                        disabled={reminderSending}
+                        className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all">
+                        {reminderSending ? 'Sending…' : `Send to ${rsvp?.pending ?? 0}`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {reminderTab === 'preview' && (
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    <div className="px-6 py-2 border-b border-gray-50 shrink-0 flex justify-between items-center">
+                      <p className="text-xs text-gray-400">Preview with first recipient's data</p>
+                      <button onClick={() => setReminderTab('compose')}
+                        className="text-xs text-indigo-600 hover:underline">← Back to compose</button>
+                    </div>
+                    {reminderPreviewLoading ? (
+                      <div className="flex-1 flex items-center justify-center text-sm text-gray-400 p-8">Loading preview…</div>
+                    ) : (
+                      <iframe srcDoc={reminderPreviewHtml ?? ''} className="flex-1 w-full" title="Reminder Preview"
+                        sandbox="allow-same-origin" style={{ minHeight: '400px' }} />
+                    )}
+                    <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-2.5">
+                      <button onClick={() => setReminderTab('compose')}
+                        className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                        Edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setReminderSending(true)
+                          const res = await fetch(`/api/campaigns/${id}/rsvp/reminder`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reminderText }),
+                          })
+                          const data = await res.json()
+                          setReminderResult(data)
+                          setReminderSending(false)
+                          fetchRsvp()
+                        }}
+                        disabled={reminderSending}
+                        className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all">
+                        {reminderSending ? 'Sending…' : `Send to ${rsvp?.pending ?? 0}`}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
